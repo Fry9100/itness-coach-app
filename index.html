@@ -180,6 +180,12 @@
   .progresstrack{height:9px;border-radius:99px;background:var(--chip);overflow:hidden;margin-top:6px;}
   .progressfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-strong));
     width:0%;transition:width .6s cubic-bezier(.22,.8,.32,1);}
+  /* Heute: Fitness/Ernährung Untertabs */
+  .subtabs{display:flex;background:var(--chip);border-radius:14px;padding:4px;margin-bottom:12px;gap:4px;}
+  .subtabs button{flex:1;background:none;border:none;border-radius:11px;padding:9px 4px;
+    font-size:12.5px;font-weight:700;color:var(--sub);display:flex;align-items:center;justify-content:center;gap:5px;
+    transition:background-color .18s ease,color .18s ease,box-shadow .18s ease;}
+  .subtabs button.active{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08);}
   /* day strip */
   .daystrip{display:flex;gap:6px;margin-bottom:12px;}
   .daychip{flex:1;text-align:center;background:var(--card);border:1.5px solid var(--line);
@@ -265,33 +271,42 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>🚴 Radfahren heute</h2>
-      <div class="num-inline">
-        <div><label>Kilometer</label><input type="number" id="in_km" placeholder="0"></div>
-        <div><label>Höhenmeter</label><input type="number" id="in_elev" placeholder="0"></div>
-      </div>
-      <p class="sub" style="margin-top:8px;">Trag ein, was du heute (schon) gefahren bist – Training und Kalorienziel unten passen sich sofort an.</p>
+    <div class="subtabs" id="todaySubtabs">
+      <button class="active" data-target="fitness">🏋️ Fitness</button>
+      <button data-target="nutrition">🍽️ Ernährung</button>
     </div>
 
-    <div class="card" id="strengthCard">
-      <h2>🏋️ Krafttraining</h2>
-      <div id="strengthContent"></div>
-    </div>
-
-    <div class="card" id="nutritionCard">
-      <h2>🍽️ Ernährung</h2>
-      <div id="nutritionRestNote"></div>
-      <div id="nutritionTracking">
-        <div class="grid3">
-          <div class="stat"><b id="out_target">–</b><span>Ziel kcal heute</span></div>
-          <div class="stat"><b id="out_protein">–</b><span>Protein g</span></div>
-          <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
+    <div id="subview-fitness">
+      <div class="card">
+        <h2>🚴 Radfahren heute</h2>
+        <div class="num-inline">
+          <div><label>Kilometer</label><input type="number" id="in_km" placeholder="0"></div>
+          <div><label>Höhenmeter</label><input type="number" id="in_elev" placeholder="0"></div>
         </div>
-        <div id="mealList" style="margin-top:6px;"></div>
-        <div id="extraCarbNote"></div>
+        <p class="sub" style="margin-top:8px;">Trag ein, was du heute (schon) gefahren bist – Training und Kalorienziel drüben bei "Ernährung" passen sich sofort an.</p>
       </div>
-      <button class="pill secondary" style="margin-top:12px;" onclick="showShoppingList()">🛒 Einkaufsliste bis Sonntag</button>
+
+      <div class="card" id="strengthCard">
+        <h2>🏋️ Krafttraining</h2>
+        <div id="strengthContent"></div>
+      </div>
+    </div>
+
+    <div id="subview-nutrition" style="display:none;">
+      <div class="card" id="nutritionCard">
+        <h2>🍽️ Ernährung</h2>
+        <div id="nutritionRestNote"></div>
+        <div id="nutritionTracking">
+          <div class="grid3">
+            <div class="stat"><b id="out_target">–</b><span>Ziel kcal heute</span></div>
+            <div class="stat"><b id="out_protein">–</b><span>Protein g</span></div>
+            <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
+          </div>
+          <div id="mealList" style="margin-top:6px;"></div>
+          <div id="extraCarbNote"></div>
+        </div>
+        <button class="pill secondary" style="margin-top:12px;" onclick="showShoppingList()">🛒 Einkaufsliste bis Sonntag</button>
+      </div>
     </div>
 
   </section>
@@ -418,6 +433,19 @@ tabs.forEach(btn=>{
     window.scrollTo(0,0);
   });
 });
+
+/* ---------- Heute: Fitness/Ernährung Untertabs ---------- */
+const subtabBtns = document.querySelectorAll('#todaySubtabs button');
+function setTodaySubtab(target){
+  subtabBtns.forEach(b=>b.classList.toggle('active', b.dataset.target===target));
+  document.getElementById('subview-fitness').style.display = target==='fitness' ? '' : 'none';
+  document.getElementById('subview-nutrition').style.display = target==='nutrition' ? '' : 'none';
+  saveJSON('todaySubtab', target);
+}
+subtabBtns.forEach(btn=>{
+  btn.addEventListener('click', ()=>setTodaySubtab(btn.dataset.target));
+});
+setTodaySubtab(loadJSON('todaySubtab', 'fitness'));
 
 /* ---------- Date helpers ---------- */
 function pad(n){ return String(n).padStart(2,'0'); }
