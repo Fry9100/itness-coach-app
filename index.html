@@ -621,15 +621,22 @@ function fmtIngredient(item, qty, unit){
   if(unit==='Stk') return `${qty} ${item}`;
   return `${qty} ${unit} ${item}`;
 }
-function showRecipeDetail(recipe, scaledCarbQty, icon){
+// Skaliert nur g/ml-Mengen (die eigentlichen Kalorienträger) mit dem Tagesfaktor;
+// Stück/EL/TL (Eier, Zwiebel, Öl, Gewürze) bleiben fix, da hier Skalierung keinen Sinn ergibt.
+function scaleQty(qty, unit, scale){
+  if(scale==null || scale===1) return qty;
+  if(unit==='g' || unit==='ml') return Math.max(5, Math.round(qty*scale/5)*5);
+  return qty;
+}
+function showRecipeDetail(recipe, scale, icon){
   icon = icon || '🍽️';
   if(recipe.freeform){
     openDetail(`<div class="card"><div class="exCard"><span class="medallion">${icon}</span><h2 style="margin:0;">${recipe.name}</h2></div><p style="margin-top:10px;">${recipe.note}</p></div>`);
     return;
   }
   const lines = [];
-  if(recipe.carb) lines.push(fmtIngredient(recipe.carb.item, scaledCarbQty ?? recipe.carb.base, recipe.carb.unit));
-  recipe.extra.forEach(e=>lines.push(fmtIngredient(e.item, e.qty, e.unit)));
+  if(recipe.carb) lines.push(fmtIngredient(recipe.carb.item, scaleQty(recipe.carb.base, recipe.carb.unit, scale), recipe.carb.unit));
+  recipe.extra.forEach(e=>lines.push(fmtIngredient(e.item, scaleQty(e.qty, e.unit, scale), e.unit)));
   openDetail(`
     <div class="card">
       <div class="exCard"><span class="medallion">${icon}</span><h2 style="margin:0;">${recipe.name}</h2></div>
@@ -651,10 +658,10 @@ function showShoppingList(){
     if(!totals[k]) totals[k] = {item, qty:0, unit};
     totals[k].qty += qty;
   }
-  function addRecipe(recipe, scaledQty){
+  function addRecipe(recipe, scale){
     if(!recipe || recipe.freeform) return;
-    if(recipe.carb) add(recipe.carb.item, scaledQty ?? recipe.carb.base, recipe.carb.unit);
-    recipe.extra.forEach(e=>add(e.item, e.qty, e.unit));
+    if(recipe.carb) add(recipe.carb.item, scaleQty(recipe.carb.base, recipe.carb.unit, scale), recipe.carb.unit);
+    recipe.extra.forEach(e=>add(e.item, scaleQty(e.qty, e.unit, scale), e.unit));
   }
 
   let cur = new Date(start);
@@ -681,16 +688,17 @@ function showShoppingList(){
     }
     remainingNonRestDays++;
     const doneMeals = (first && dayLog) ? dayLog.meals || {} : {};
-    const dayRideLoad = (dayLog?dayLog.km||0:0) + (dayLog?dayLog.elev||0:0)/50;
-    const dayScale = Math.min(2.5, Math.max(1, 1 + dayRideLoad/120));
-    const sq = base => Math.round(base*dayScale/10)*10;
-
     const lunch = LUNCHES[wIdx];
     const dinner = DINNERS[wIdx];
-    if(!doneMeals.breakfast) addRecipe(BREAKFAST);
-    if(!doneMeals.lunch) addRecipe(lunch, lunch.carb? sq(lunch.carb.base): null);
-    if(!doneMeals.snack) addRecipe(SNACK);
-    if(!doneMeals.dinner) addRecipe(dinner, dinner.carb? sq(dinner.carb.base): null);
+    const dayTraining = !!(dayLog && (dayLog.strengthDone || Object.values(dayLog.exDone||{}).some(v=>v)));
+    const macrosForDay = computeMacros(dayLog?dayLog.km:0, dayLog?dayLog.elev:0, dayTraining);
+    const fixedKcalForDay = BREAKFAST.kcalBase + SNACK.kcalBase + (dayTraining ? SHAKE.kcalBase : 0);
+    const dayScale = Math.min(2.2, Math.max(0.5, (macrosForDay.target - fixedKcalForDay) / (lunch.kcalBase + dinner.kcalBase)));
+
+    if(!doneMeals.breakfast) addRecipe(BREAKFAST, 1);
+    if(!doneMeals.lunch) addRecipe(lunch, dayScale);
+    if(!doneMeals.snack) addRecipe(SNACK, 1);
+    if(!doneMeals.dinner) addRecipe(dinner, dayScale);
     if(lunch.freeform) notes.push(`${WD_LABELS[wIdx]}: Mittag frei wählbar – nicht in der Liste enthalten.`);
     if(dinner.freeform) notes.push(`${WD_LABELS[wIdx]}: Abend frei wählbar – nicht in der Liste enthalten.`);
 
@@ -760,7 +768,7 @@ document.getElementById('exerciseCards').querySelectorAll('.exname').forEach(el=
 });
 
 /* ---------- Rezept-Datenbank (Mittag/Abend je Wochentag, plus fixe Mahlzeiten) ---------- */
-const BREAKFAST = { name:'Skyr-Porridge', ingredients:null,
+const BREAKFAST = { name:'Skyr-Porridge', ingredients:null, kcalBase:655,
   extra:[
     {item:'Skyr', qty:500, unit:'g'},
     {item:'Haferflocken', qty:60, unit:'g'},
@@ -769,14 +777,14 @@ const BREAKFAST = { name:'Skyr-Porridge', ingredients:null,
   ], carb:null,
   steps:['Haferflocken in den Skyr einrühren.','Banane in Scheiben schneiden und untermischen.','Mit Zimt bestreuen. Fertig – kein Kochen nötig.'] };
 
-const SNACK = { name:'Skyr + Beeren', carb:null,
+const SNACK = { name:'Skyr + Beeren', carb:null, kcalBase:220,
   extra:[
     {item:'Skyr', qty:250, unit:'g'},
     {item:'Beeren (z. B. Blaubeeren)', qty:100, unit:'g'}
   ],
   steps:['Beeren ggf. auftauen/waschen.','Mit Skyr mischen. Fertig in 2 Minuten.'] };
 
-const SHAKE = { name:'Post-Workout Shake', carb:null,
+const SHAKE = { name:'Post-Workout Shake', carb:null, kcalBase:115,
   extra:[
     {item:'ESN Whey Protein', qty:30, unit:'g (1 Scoop)'},
     {item:'Wasser', qty:300, unit:'ml'}
@@ -816,49 +824,49 @@ const DAILY_INTAKE = [
 ];
 
 const LUNCHES = [
-  { name:'Tofu-Reis-Bowl mit Gemüse', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Tofu-Reis-Bowl mit Gemüse', kcalBase:930, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Karotten)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend (oder auf Vorrat am Wochenende) zubereiten: Reis kochen, Tofu würfeln und in Öl knusprig anbraten, Gemüse 5 Min. mitbraten, mit Sojasauce abschmecken.','Alles in eine Lunchbox füllen, im Kühlschrank lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
-  { name:'Linsen-Nudeln mit Gemüse', carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
+  { name:'Linsen-Nudeln mit Gemüse', kcalBase:420, carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Passierte Tomaten', qty:100, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Nudeln kochen, Gemüse in Öl anbraten, passierte Tomaten dazugeben, 5–10 Min. köcheln, mit den Nudeln vermengen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit in der Mikrowelle aufwärmen (2–3 Min.) oder kalt essen.'] },
-  { name:'Kichererbsen-Reis-Bowl', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Kichererbsen-Reis-Bowl', kcalBase:925, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
     steps:['Am Vorabend zubereiten: Reis kochen, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Salat/Gemüse in eine Lunchbox schichten, Dressing separat mitnehmen.','In der Arbeit den warmen Teil in der Mikrowelle aufwärmen, Salat kalt dazu, Dressing erst kurz vorher drüber.'] },
-  { name:'Halloumi-Nudelsalat', carb:{item:'Nudeln (roh)', base:80, unit:'g'},
+  { name:'Halloumi-Nudelsalat', kcalBase:755, carb:{item:'Nudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Halloumi', qty:125, unit:'g'},{item:'Cherrytomaten/Gurke', qty:150, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Nudeln kochen und abkühlen lassen, Halloumi in Scheiben goldbraun braten.','Mit Gemüse und Öl vermengen, in eine Lunchbox füllen, kühl lagern.','Schmeckt kalt – einfach mit zur Arbeit nehmen, kein Aufwärmen nötig.'] },
-  { name:'Veggie-Geschnetzeltes (Soja) + Reis', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Veggie-Geschnetzeltes (Soja) + Reis', kcalBase:915, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Soja-Geschnetzeltes', qty:150, unit:'g'},{item:'Gemüse (Paprika/Zwiebel)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Reis kochen, Soja-Geschnetzeltes anbraten, Gemüse dazugeben, mit Sojasauce würzen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen.'] },
-  { name:'Gefüllte Paprika mit Reis und Käse', carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:940, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Paprika, groß (zum Füllen)', qty:2, unit:'Stk'},{item:'Käse gerieben', qty:60, unit:'g'},{item:'Passierte Tomaten', qty:150, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'}],
     steps:['Reis halb gar vorkochen.','Paprika halbieren, entkernen, mit Reis, kleingeschnittener Zwiebel und etwas passierter Tomate füllen.','Mit Käse bestreuen, bei 200°C ca. 25–30 Min. backen.','Heiß servieren – am Wochenende Zeit für frisches Kochen statt Meal Prep.'] },
-  { name:'Veganes Chili sin Carne mit Reis', carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Veganes Chili sin Carne mit Reis', kcalBase:1085, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Kidneybohnen (Dose, abgetropft)', qty:240, unit:'g'},{item:'Mais (Dose, abgetropft)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Paprika', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Chilipulver', qty:1, unit:'TL'}],
     steps:['Zwiebel und Paprika klein schneiden, kurz anbraten.','Bohnen, Mais und passierte Tomaten dazugeben, mit Chilipulver 15–20 Min. köcheln.','Reis parallel kochen.','Ruhig eine größere Menge kochen und 2–3 Portionen für die kommende Woche kühl/eingefroren aufheben – guter Meal-Prep-Start in die Woche.'] }
 ];
 
 const DINNERS = [
-  { name:'Bohnen-Käse-Auflauf + Ofengemüse', carb:{item:'Ofengemüse (z. B. Zucchini, Paprika, Süßkartoffel)', base:250, unit:'g'},
+  { name:'Bohnen-Käse-Auflauf + Ofengemüse', kcalBase:635, carb:{item:'Ofengemüse (z. B. Zucchini, Paprika, Süßkartoffel)', base:250, unit:'g'},
     extra:[{item:'Weiße Bohnen (Dose, abgetropft)', qty:200, unit:'g'},{item:'Käse gerieben', qty:50, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Ofen auf 200°C vorheizen.','Gemüse in Stücke schneiden, mit Öl vermengen, 20–25 Min. rösten.','Bohnen in eine Auflaufform, mit Käse bestreuen, letzte 10 Min. mit in den Ofen.','Zusammen servieren.'] },
-  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', carb:null,
+  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', kcalBase:590, carb:null,
     extra:[{item:'Eier', qty:4, unit:'Stk'},{item:'Vollkornbrot', qty:2, unit:'Scheiben (ca. 70 g)'},{item:'Salat/Tomate', qty:100, unit:'g'},{item:'Butter/Öl', qty:1, unit:'TL'}],
     steps:['Eier verquirlen.','In der Pfanne mit Butter/Öl bei mittlerer Hitze langsam stocken lassen, dabei umrühren.','Mit Brot und Salat servieren.'] },
-  { name:'Tofu-Pfanne + Süßkartoffel', carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+  { name:'Tofu-Pfanne + Süßkartoffel', kcalBase:465, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Brokkoli/Paprika)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'TL'}],
     steps:['Süßkartoffel schälen, würfeln, 15–20 Min. kochen oder im Ofen rösten.','Tofu würfeln, mit Gemüse in der Pfanne anbraten.','Sojasauce dazugeben, zusammen servieren.'] },
-  { name:'Gemüse-Curry mit Tofu + Couscous', carb:{item:'Couscous (roh)', base:60, unit:'g'},
+  { name:'Gemüse-Curry mit Tofu + Couscous', kcalBase:670, carb:{item:'Couscous (roh)', base:60, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Karotten, Erbsen, Paprika)', qty:200, unit:'g'},{item:'Kokosmilch', qty:100, unit:'ml'},{item:'Currypulver', qty:1, unit:'TL'}],
     steps:['Couscous mit heißem Wasser aufgießen, 5 Min. quellen lassen.','Tofu und Gemüse in der Pfanne anbraten.','Currypulver und Kokosmilch dazugeben, 10 Min. köcheln.','Mit Couscous servieren.'] },
-  { name:'Käsespätzle + Ofengemüse', carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
+  { name:'Käsespätzle + Ofengemüse', kcalBase:865, carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
     extra:[{item:'Bergkäse gerieben', qty:60, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Ofengemüse', qty:200, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Ofengemüse wie gewohnt rösten (200°C, 20–25 Min.).','Spätzle kochen.','Zwiebel in Öl goldbraun braten, Spätzle und Käse untermischen bis der Käse schmilzt.','Mit Gemüse servieren.'] },
-  { name:'Linsen-Bolognese mit Vollkornnudeln', carb:{item:'Vollkornnudeln (roh)', base:90, unit:'g'},
+  { name:'Linsen-Bolognese mit Vollkornnudeln', kcalBase:780, carb:{item:'Vollkornnudeln (roh)', base:90, unit:'g'},
     extra:[{item:'Rote Linsen (roh)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Karotte', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Zwiebel und Karotte klein schneiden, in Öl anschwitzen.','Linsen und passierte Tomaten dazugeben, mit etwas Wasser 15–20 Min. köcheln bis die Linsen weich sind.','Nudeln parallel kochen.','Mit der Linsen-Bolognese servieren.'] },
-  { name:'Leicht, z. B. Gemüsesuppe + Ei', carb:null,
+  { name:'Leicht, z. B. Gemüsesuppe + Ei', kcalBase:290, carb:null,
     extra:[{item:'Gemüsesuppe', qty:300, unit:'g'},{item:'Eier', qty:2, unit:'Stk'}],
     steps:['Suppe erhitzen.','Eier 8–10 Min. hart kochen, schälen.','Zusammen servieren.'] }
 ];
@@ -908,6 +916,22 @@ function computeMacros(km, elev, strengthToday){
   const carbKcal = Math.max(target - proteinG*4 - fatG*9, 0);
   const carbG = carbKcal/4;
   return { target, proteinG, fatG, carbG };
+}
+
+/* Unterwegs-Verpflegung: ab ca. 1 Std. Fahrzeit werden Kohlenhydrate während der Fahrt gebraucht,
+   nicht erst beim nächsten Sitz-Essen. Grober Richtwert Sportwissenschaft: ~60g KH/Std. nach der 1. Stunde. */
+function rideDurationHours(km, elev){ return (km||0)/25 + (elev||0)/600; }
+function onBikeCarbG(km, elev){
+  const dur = rideDurationHours(km, elev);
+  return dur <= 1 ? 0 : Math.round((dur-1)*60/10)*10;
+}
+function onBikeFuelRecipe(carbG){
+  const units = Math.max(1, Math.round(carbG/27));
+  return { name:`Unterwegs-Verpflegung: ca. ${units}× Banane/Riegel/Gel (≈${carbG} g KH)`, carb:null,
+    extra:[{item:'Banane, Sportriegel, Gel oder Sportgetränk', qty:units, unit:'Portion(en) à ca. 25–30 g KH'}],
+    steps:['Ab ca. 1 Std. Fahrzeit alle 45–60 Min. eine Portion Kohlenhydrate zu dir nehmen – nicht erst danach.',
+      'Praktisch unterwegs: Banane, Sportriegel, Gel oder ein paar Schlucke Sportgetränk – was du dabei hast.',
+      'Menge ist direkt an deine eingetragenen km/Höhenmeter gekoppelt und wird hier automatisch für dich berechnet.'] };
 }
 
 /* ---------- Render: day strip ---------- */
@@ -1082,28 +1106,30 @@ function renderToday(){
   document.getElementById('out_protein').textContent = Math.round(macros.proteinG)+'g';
   document.getElementById('out_carbs').textContent = Math.round(macros.carbG)+'g';
 
-  // Portionsgröße hängt direkt an den gefahrenen km/Höhenmetern, nicht am ganzen Kalorien-Modell -
-  // so ist der Zusammenhang "mehr Rad = mehr Portion" immer nachvollziehbar und einfach zu berechnen.
-  const rideLoad = (day.km||0) + (day.elev||0)/50;
-  const scale = Math.min(2.5, Math.max(1, 1 + rideLoad/120));
-  function scaledQty(base){ return Math.round(base*scale/10)*10; }
+  // Portionsgröße von Mittag & Abend hängt direkt am tatsächlichen Kalorienziel des Tages (macros.target) -
+  // sie wachsen an Rad-/Kraft-Tagen automatisch UND schrumpfen an echten Ruhetagen, damit nie mehr
+  // gegessen wird als das Tagesziel vorsieht (kein Überschuss, auch nicht an ruhigen Tagen).
   const lunch = LUNCHES[wdIdx];
   const dinner = DINNERS[wdIdx];
-  const lunchQty = lunch.carb ? scaledQty(lunch.carb.base) : null;
-  const dinnerQty = dinner.carb ? scaledQty(dinner.carb.base) : null;
+  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + (strengthTodayForMacros ? SHAKE.kcalBase : 0);
+  const mealScale = Math.min(2.2, Math.max(0.5, (macros.target - fixedKcal) / (lunch.kcalBase + dinner.kcalBase)));
+
+  const bikeCarbG = onBikeCarbG(day.km, day.elev);
 
   const mealDefs = [
-    {key:'medication', type:'Morgens', icon:'💊', recipe:MEDICATION, qty:null},
-    {key:'magnesiumAm', type:'Morgens', icon:'⚪', recipe:MAGNESIUM_AM, qty:null},
-    {key:'vitaminD3', type:'Morgens', icon:'☀️', recipe:VITAMIN_D3, qty:null},
-    {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, qty:null},
-    {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, qty:lunchQty},
-    {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE, qty:null},
-    {key:'shake', type:'Post-Workout', icon:'🥤', recipe:SHAKE, qty:null, onlyIfTraining:true},
-    {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, qty:null},
-    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, qty:dinnerQty},
-    {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM, qty:null}
-  ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone);
+    {key:'medication', type:'Morgens', icon:'💊', recipe:MEDICATION, scale:1},
+    {key:'magnesiumAm', type:'Morgens', icon:'⚪', recipe:MAGNESIUM_AM, scale:1},
+    {key:'vitaminD3', type:'Morgens', icon:'☀️', recipe:VITAMIN_D3, scale:1},
+    {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, scale:1},
+    {key:'onbike', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true},
+    {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:mealScale},
+    {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE, scale:1},
+    {key:'shake', type:'Post-Workout', icon:'🥤', recipe:SHAKE, scale:1, onlyIfTraining:true},
+    {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, scale:1},
+    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:mealScale},
+    {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM, scale:1}
+  ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone)
+   .filter(m => !m.onlyIfBike || bikeCarbG > 0);
 
   document.getElementById('mealList').innerHTML = mealDefs.map(m=>`
     <div class="exrow">
@@ -1118,12 +1144,14 @@ function renderToday(){
   document.getElementById('mealList').querySelectorAll('.exname').forEach(el=>{
     el.addEventListener('click', ()=>{
       const m = mealDefs.find(x=>x.key===el.dataset.key);
-      showRecipeDetail(m.recipe, m.qty, m.icon);
+      showRecipeDetail(m.recipe, m.scale, m.icon);
     });
   });
 
-  document.getElementById('extraCarbNote').innerHTML = bigRide
-    ? `<p class="sub" style="margin-top:8px;">🚴 Große Radausfahrt heute – die größere Reis-/Nudel-Portion allein deckt den Mehrbedarf oft nicht mehr ab. Iss über den Tag verteilt noch 1–2 zusätzliche kohlenhydratreiche Snacks (z. B. Banane, Weißbrot mit Honig, Sportriegel, weiterer Reis-Nachschlag).</p>`
+  const realizedKcal = fixedKcal + (lunch.kcalBase + dinner.kcalBase)*mealScale + bikeCarbG*4;
+  const stillShort = macros.target - realizedKcal;
+  document.getElementById('extraCarbNote').innerHTML = stillShort > 400
+    ? `<p class="sub" style="margin-top:8px;">🚴 Sehr hoher Energiebedarf heute – Plan + Unterwegs-Verpflegung decken nicht mehr alles exakt ab. Iss an so einem Tag ruhig nach Hunger etwas mehr (z. B. Nachschlag Reis/Nudeln, zusätzliches Brot) – lieber etwas mehr als zu wenig, wenn die Belastung so hoch war.</p>`
     : '';
 }
 
