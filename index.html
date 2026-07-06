@@ -694,14 +694,8 @@ function showShoppingList(){
 
   let cur = new Date(start);
   let first = true;
-  const monday = mondayOfWeek(TODAY);
-  let sessionsDoneThisWeek = 0;
-  for(let i=0;i<7;i++){
-    const k = keyOf(addDays(monday,i));
-    if(days[k] && days[k].strengthDone) sessionsDoneThisWeek++;
-  }
-  let remainingNonRestDays = 0;
   let creatineDays = 0;
+  let wheyScoopsTotal = 0;
 
   while(cur.getTime() <= end.getTime()){
     const k = keyOf(cur);
@@ -714,14 +708,13 @@ function showShoppingList(){
       notes.push(`${WD_LABELS[wIdx]} (${pad(cur.getDate())}.${pad(cur.getMonth()+1)}.): als Ruhetag/Cheatday markiert – nur Kreatin zählt an diesem Tag mit.`);
       cur = addDays(cur,1); first=false; continue;
     }
-    remainingNonRestDays++;
     const doneMeals = (first && dayLog) ? dayLog.meals || {} : {};
     const lunch = LUNCHES[wIdx];
     const dinner = DINNERS[wIdx];
     const dayTraining = !!(dayLog && (dayLog.strengthDone || Object.values(dayLog.exDone||{}).some(v=>v)));
     const macrosForDay = computeMacros(dayLog?dayLog.km:0, dayLog?dayLog.elev:0, dayTraining);
-    const fixedKcalForDay = BREAKFAST.kcalBase + SNACK.kcalBase + (dayTraining ? SHAKE.kcalBase : 0);
-    const dayScale = Math.min(2.2, Math.max(0.5, (macrosForDay.target - fixedKcalForDay) / (lunch.kcalBase + dinner.kcalBase)));
+    const { scoops: dayScoops, scale: dayScale } = planMealScale(macrosForDay.target, lunch, dinner, dayTraining ? 1 : 0);
+    if(!doneMeals.shake) wheyScoopsTotal += dayScoops;
 
     if(!doneMeals.breakfast) addRecipe(BREAKFAST, 1);
     if(!doneMeals.lunch) addRecipe(lunch, dayScale);
@@ -734,7 +727,6 @@ function showShoppingList(){
     first = false;
   }
 
-  const sessionsRemaining = Math.max(Math.min(profile.target - sessionsDoneThisWeek, remainingNonRestDays), 0);
   const items = Object.values(totals).sort((a,b)=>a.item.localeCompare(b.item,'de'));
   const weekKey = keyOf(end);
   const checks = loadJSON('shoppingChecks_'+weekKey, {});
@@ -752,7 +744,7 @@ function showShoppingList(){
           </div>`).join('')}
         <div class="checkline">
           <input type="checkbox" id="shop_whey" ${checks['__whey']?'checked':''}>
-          <div class="clabel">ESN Whey Protein (für Shakes)<small>ca. ${sessionsRemaining}× Training diese Woche noch zu erwarten → ca. ${sessionsRemaining*30} g</small></div>
+          <div class="clabel">ESN Whey Protein (für Shakes)<small>${wheyScoopsTotal} Scoop(s) diese Woche noch geplant (Training + Protein-Ausgleich) → ca. ${wheyScoopsTotal*30} g</small></div>
         </div>
         <div class="checkline">
           <input type="checkbox" id="shop_creatine" ${checks['__creatine']?'checked':''}>
@@ -796,7 +788,7 @@ document.getElementById('exerciseCards').querySelectorAll('.exname').forEach(el=
 });
 
 /* ---------- Rezept-Datenbank (Mittag/Abend je Wochentag, plus fixe Mahlzeiten) ---------- */
-const BREAKFAST = { name:'Skyr-Porridge', ingredients:null, kcalBase:655,
+const BREAKFAST = { name:'Skyr-Porridge', ingredients:null, kcalBase:655, proteinBase:64,
   extra:[
     {item:'Skyr', qty:500, unit:'g'},
     {item:'Haferflocken', qty:60, unit:'g'},
@@ -805,14 +797,14 @@ const BREAKFAST = { name:'Skyr-Porridge', ingredients:null, kcalBase:655,
   ], carb:null,
   steps:['Haferflocken in den Skyr einrühren.','Banane in Scheiben schneiden und untermischen.','Mit Zimt bestreuen. Fertig – kein Kochen nötig.'] };
 
-const SNACK = { name:'Skyr + Beeren', carb:null, kcalBase:220,
+const SNACK = { name:'Skyr + Beeren', carb:null, kcalBase:220, proteinBase:28,
   extra:[
     {item:'Skyr', qty:250, unit:'g'},
     {item:'Beeren (z. B. Blaubeeren)', qty:100, unit:'g'}
   ],
   steps:['Beeren ggf. auftauen/waschen.','Mit Skyr mischen. Fertig in 2 Minuten.'] };
 
-const SHAKE = { name:'Post-Workout Shake', carb:null, kcalBase:115,
+const SHAKE = { name:'Post-Workout Shake', carb:null, kcalBase:115, proteinBase:23,
   extra:[
     {item:'ESN Whey Protein', qty:30, unit:'g (1 Scoop)'},
     {item:'Wasser', qty:300, unit:'ml'}
@@ -852,49 +844,49 @@ const DAILY_INTAKE = [
 ];
 
 const LUNCHES = [
-  { name:'Tofu-Reis-Bowl mit Gemüse', kcalBase:930, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Tofu-Reis-Bowl mit Gemüse', kcalBase:930, proteinBase:36, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Karotten)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend (oder auf Vorrat am Wochenende) zubereiten: Reis kochen, Tofu würfeln und in Öl knusprig anbraten, Gemüse 5 Min. mitbraten, mit Sojasauce abschmecken.','Alles in eine Lunchbox füllen, im Kühlschrank lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
-  { name:'Linsen-Nudeln mit Gemüse', kcalBase:420, carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
+  { name:'Linsen-Nudeln mit Gemüse', kcalBase:420, proteinBase:26, carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Passierte Tomaten', qty:100, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Nudeln kochen, Gemüse in Öl anbraten, passierte Tomaten dazugeben, 5–10 Min. köcheln, mit den Nudeln vermengen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit in der Mikrowelle aufwärmen (2–3 Min.) oder kalt essen.'] },
-  { name:'Kichererbsen-Reis-Bowl', kcalBase:925, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Kichererbsen-Reis-Bowl', kcalBase:925, proteinBase:27, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
     steps:['Am Vorabend zubereiten: Reis kochen, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Salat/Gemüse in eine Lunchbox schichten, Dressing separat mitnehmen.','In der Arbeit den warmen Teil in der Mikrowelle aufwärmen, Salat kalt dazu, Dressing erst kurz vorher drüber.'] },
-  { name:'Halloumi-Nudelsalat', kcalBase:755, carb:{item:'Nudeln (roh)', base:80, unit:'g'},
+  { name:'Halloumi-Nudelsalat', kcalBase:755, proteinBase:39, carb:{item:'Nudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Halloumi', qty:125, unit:'g'},{item:'Cherrytomaten/Gurke', qty:150, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Nudeln kochen und abkühlen lassen, Halloumi in Scheiben goldbraun braten.','Mit Gemüse und Öl vermengen, in eine Lunchbox füllen, kühl lagern.','Schmeckt kalt – einfach mit zur Arbeit nehmen, kein Aufwärmen nötig.'] },
-  { name:'Veggie-Geschnetzeltes (Soja) + Reis', kcalBase:915, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Veggie-Geschnetzeltes (Soja) + Reis', kcalBase:915, proteinBase:43, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Soja-Geschnetzeltes', qty:150, unit:'g'},{item:'Gemüse (Paprika/Zwiebel)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Reis kochen, Soja-Geschnetzeltes anbraten, Gemüse dazugeben, mit Sojasauce würzen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen.'] },
-  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:940, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:940, proteinBase:32, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Paprika, groß (zum Füllen)', qty:2, unit:'Stk'},{item:'Käse gerieben', qty:60, unit:'g'},{item:'Passierte Tomaten', qty:150, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'}],
     steps:['Reis halb gar vorkochen.','Paprika halbieren, entkernen, mit Reis, kleingeschnittener Zwiebel und etwas passierter Tomate füllen.','Mit Käse bestreuen, bei 200°C ca. 25–30 Min. backen.','Heiß servieren – am Wochenende Zeit für frisches Kochen statt Meal Prep.'] },
-  { name:'Veganes Chili sin Carne mit Reis', kcalBase:1085, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Veganes Chili sin Carne mit Reis', kcalBase:1085, proteinBase:40, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Kidneybohnen (Dose, abgetropft)', qty:240, unit:'g'},{item:'Mais (Dose, abgetropft)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Paprika', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Chilipulver', qty:1, unit:'TL'}],
     steps:['Zwiebel und Paprika klein schneiden, kurz anbraten.','Bohnen, Mais und passierte Tomaten dazugeben, mit Chilipulver 15–20 Min. köcheln.','Reis parallel kochen.','Ruhig eine größere Menge kochen und 2–3 Portionen für die kommende Woche kühl/eingefroren aufheben – guter Meal-Prep-Start in die Woche.'] }
 ];
 
 const DINNERS = [
-  { name:'Bohnen-Käse-Auflauf + Ofengemüse', kcalBase:635, carb:{item:'Ofengemüse (z. B. Zucchini, Paprika, Süßkartoffel)', base:250, unit:'g'},
+  { name:'Bohnen-Käse-Auflauf + Ofengemüse', kcalBase:635, proteinBase:34, carb:{item:'Ofengemüse (z. B. Zucchini, Paprika, Süßkartoffel)', base:250, unit:'g'},
     extra:[{item:'Weiße Bohnen (Dose, abgetropft)', qty:200, unit:'g'},{item:'Käse gerieben', qty:50, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Ofen auf 200°C vorheizen.','Gemüse in Stücke schneiden, mit Öl vermengen, 20–25 Min. rösten.','Bohnen in eine Auflaufform, mit Käse bestreuen, letzte 10 Min. mit in den Ofen.','Zusammen servieren.'] },
-  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', kcalBase:590, carb:null,
+  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', kcalBase:590, proteinBase:38, carb:null,
     extra:[{item:'Eier', qty:4, unit:'Stk'},{item:'Vollkornbrot', qty:2, unit:'Scheiben (ca. 70 g)'},{item:'Salat/Tomate', qty:100, unit:'g'},{item:'Butter/Öl', qty:1, unit:'TL'}],
     steps:['Eier verquirlen.','In der Pfanne mit Butter/Öl bei mittlerer Hitze langsam stocken lassen, dabei umrühren.','Mit Brot und Salat servieren.'] },
-  { name:'Tofu-Pfanne + Süßkartoffel', kcalBase:465, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+  { name:'Tofu-Pfanne + Süßkartoffel', kcalBase:465, proteinBase:27, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Brokkoli/Paprika)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'TL'}],
     steps:['Süßkartoffel schälen, würfeln, 15–20 Min. kochen oder im Ofen rösten.','Tofu würfeln, mit Gemüse in der Pfanne anbraten.','Sojasauce dazugeben, zusammen servieren.'] },
-  { name:'Gemüse-Curry mit Tofu + Couscous', kcalBase:670, carb:{item:'Couscous (roh)', base:60, unit:'g'},
+  { name:'Gemüse-Curry mit Tofu + Couscous', kcalBase:670, proteinBase:33, carb:{item:'Couscous (roh)', base:60, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Karotten, Erbsen, Paprika)', qty:200, unit:'g'},{item:'Kokosmilch', qty:100, unit:'ml'},{item:'Currypulver', qty:1, unit:'TL'}],
     steps:['Couscous mit heißem Wasser aufgießen, 5 Min. quellen lassen.','Tofu und Gemüse in der Pfanne anbraten.','Currypulver und Kokosmilch dazugeben, 10 Min. köcheln.','Mit Couscous servieren.'] },
-  { name:'Käsespätzle + Ofengemüse', kcalBase:865, carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
+  { name:'Käsespätzle + Ofengemüse', kcalBase:865, proteinBase:36, carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
     extra:[{item:'Bergkäse gerieben', qty:60, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Ofengemüse', qty:200, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Ofengemüse wie gewohnt rösten (200°C, 20–25 Min.).','Spätzle kochen.','Zwiebel in Öl goldbraun braten, Spätzle und Käse untermischen bis der Käse schmilzt.','Mit Gemüse servieren.'] },
-  { name:'Linsen-Bolognese mit Vollkornnudeln', kcalBase:780, carb:{item:'Vollkornnudeln (roh)', base:90, unit:'g'},
+  { name:'Linsen-Bolognese mit Vollkornnudeln', kcalBase:780, proteinBase:41, carb:{item:'Vollkornnudeln (roh)', base:90, unit:'g'},
     extra:[{item:'Rote Linsen (roh)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Karotte', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Zwiebel und Karotte klein schneiden, in Öl anschwitzen.','Linsen und passierte Tomaten dazugeben, mit etwas Wasser 15–20 Min. köcheln bis die Linsen weich sind.','Nudeln parallel kochen.','Mit der Linsen-Bolognese servieren.'] },
-  { name:'Leicht, z. B. Gemüsesuppe + Ei', kcalBase:290, carb:null,
+  { name:'Leicht, z. B. Gemüsesuppe + Ei', kcalBase:290, proteinBase:22, carb:null,
     extra:[{item:'Gemüsesuppe', qty:300, unit:'g'},{item:'Eier', qty:2, unit:'Stk'}],
     steps:['Suppe erhitzen.','Eier 8–10 Min. hart kochen, schälen.','Zusammen servieren.'] }
 ];
@@ -944,6 +936,32 @@ function computeMacros(km, elev, strengthToday){
   const carbKcal = Math.max(target - proteinG*4 - fatG*9, 0);
   const carbG = carbKcal/4;
   return { target, proteinG, fatG, carbG };
+}
+
+/* Portionsgröße + Whey-Scoops gemeinsam planen: so viele Scoops (max. 2/Tag, siehe Supplement-Hinweise)
+   wie das Kalorienziel noch zulässt (Mittag/Abend dürfen dafür nie unter 50% der Basisportion schrumpfen) -
+   damit deckt die Ernährung inkl. Proteinpulver den Tagesbedarf, ohne je über das Kalorienziel zu gehen. */
+function planMealScale(target, lunch, dinner, baselineScoops){
+  let scoops = baselineScoops, scale = null;
+  for(let s=baselineScoops; s<=2; s++){
+    const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
+    const raw = (target - fixedKcal) / (lunch.kcalBase + dinner.kcalBase);
+    if(raw >= 0.5){ scoops = s; scale = Math.min(2.2, raw); } else break;
+  }
+  if(scale == null) scale = 0.5;
+  return { scoops, scale };
+}
+function shakeRecipe(scoops, isTraining){
+  return { name:`Whey-Shake: ${scoops}× Scoop (≈${scoops*SHAKE.proteinBase}g Protein)`, carb:null,
+    extra:[
+      {item:'ESN Whey Protein', qty:scoops*30, unit:'g'},
+      {item:'Wasser', qty:scoops*300, unit:'ml'}
+    ],
+    steps:[
+      `${scoops}× 30g Pulver mit insgesamt ${scoops*300}ml Wasser schütteln (ggf. auf mehrere Shaker über den Tag verteilt).`,
+      isTraining ? 'Einen Shake direkt nach dem Krafttraining trinken, den Rest über den Tag verteilt.' : 'Am besten über den Tag verteilt trinken, z. B. als Zwischenmahlzeit.',
+      'Menge wird automatisch berechnet, damit du zusammen mit den anderen Mahlzeiten dein Tages-Protein-Ziel erreichst.'
+    ] };
 }
 
 /* Unterwegs-Verpflegung: ab ca. 1 Std. Fahrzeit werden Kohlenhydrate während der Fahrt gebraucht,
@@ -1134,13 +1152,16 @@ function renderToday(){
   document.getElementById('out_protein').textContent = Math.round(macros.proteinG)+'g';
   document.getElementById('out_carbs').textContent = Math.round(macros.carbG)+'g';
 
-  // Portionsgröße von Mittag & Abend hängt direkt am tatsächlichen Kalorienziel des Tages (macros.target) -
-  // sie wachsen an Rad-/Kraft-Tagen automatisch UND schrumpfen an echten Ruhetagen, damit nie mehr
-  // gegessen wird als das Tagesziel vorsieht (kein Überschuss, auch nicht an ruhigen Tagen).
+  // Portionsgröße von Mittag & Abend + Whey-Scoops hängen direkt am tatsächlichen Kalorienziel des Tages
+  // (macros.target) - sie wachsen an Rad-/Kraft-Tagen automatisch UND schrumpfen an echten Ruhetagen,
+  // damit nie mehr gegessen wird als das Tagesziel vorsieht (kein Überschuss, auch nicht an ruhigen Tagen).
+  // Zusätzlich werden so viele Whey-Scoops (max. 2/Tag) eingeplant, wie ohne Zielüberschreitung reinpassen,
+  // damit Ernährung + Proteinpulver zusammen den täglichen Proteinbedarf abdecken.
   const lunch = LUNCHES[wdIdx];
   const dinner = DINNERS[wdIdx];
-  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + (strengthTodayForMacros ? SHAKE.kcalBase : 0);
-  const mealScale = Math.min(2.2, Math.max(0.5, (macros.target - fixedKcal) / (lunch.kcalBase + dinner.kcalBase)));
+  const isTrainingDay = strengthTodayForMacros || day.strengthDone;
+  const { scoops, scale: mealScale } = planMealScale(macros.target, lunch, dinner, isTrainingDay ? 1 : 0);
+  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + scoops*SHAKE.kcalBase;
 
   const bikeCarbG = onBikeCarbG(day.km, day.elev);
 
@@ -1152,11 +1173,11 @@ function renderToday(){
     {key:'onbike', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true},
     {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:mealScale},
     {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE, scale:1},
-    {key:'shake', type:'Post-Workout', icon:'🥤', recipe:SHAKE, scale:1, onlyIfTraining:true},
+    {key:'shake', type:isTrainingDay?'Post-Workout':'Extra-Protein', icon:'🥤', recipe:shakeRecipe(scoops, isTrainingDay), scale:1, onlyIfShake:true},
     {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, scale:1},
     {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:mealScale},
     {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM, scale:1}
-  ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone)
+  ].filter(m => !m.onlyIfShake || scoops > 0)
    .filter(m => !m.onlyIfBike || bikeCarbG > 0);
 
   document.getElementById('mealList').innerHTML = mealDefs.map(m=>`
