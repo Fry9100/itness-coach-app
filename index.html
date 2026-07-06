@@ -65,6 +65,14 @@
     border-top:1px dashed var(--line);font-size:13.5px;}
   .exlist li:first-child{border-top:none;}
   .exlist small{color:var(--sub);white-space:nowrap;}
+  .exrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line);}
+  .exrow:first-child{border-top:none;}
+  .exrow input{width:20px;height:20px;flex:0 0 auto;}
+  .exrow .exname{flex:1;font-size:13.5px;cursor:pointer;}
+  .exrow .exname small{display:block;color:var(--sub);font-size:11.5px;}
+  .exrow .chev{color:var(--sub);font-size:16px;flex:0 0 auto;}
+  .backbtn{background:none;border:none;color:var(--accent);font-size:14px;font-weight:600;
+    padding:2px 0 12px;margin:0;}
   .checkline{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
   .checkline:first-of-type{border-top:none;}
   .checkline input{width:20px;height:20px;flex:0 0 auto;}
@@ -167,6 +175,12 @@
       <p class="sub">Zielmuskel, Ausführung und ein Link zu Video-Anleitungen für jede Übung aus deinem Plan.</p>
     </div>
     <div id="exerciseCards"></div>
+  </section>
+
+  <!-- ===================== ÜBUNGS-DETAIL (aus Heute anspringbar) ===================== -->
+  <section class="view" id="view-exercise-detail">
+    <button class="backbtn" onclick="closeExerciseDetail()">‹ Zurück zu Heute</button>
+    <div id="exerciseDetailContent"></div>
   </section>
 
   <!-- ===================== MEHR (Profil, Ernährungsprinzipien, Supplements) ===================== -->
@@ -298,7 +312,8 @@ function saveProfile(){
 /* ---------- Day log storage ---------- */
 let days = loadJSON('days', {});
 function getDay(key){
-  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:[false,false,false,false,false] };
+  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:[false,false,false,false,false], exDone:{} };
+  if(!days[key].exDone) days[key].exDone = {};
   return days[key];
 }
 function saveDays(){ saveJSON('days', days); }
@@ -326,49 +341,93 @@ const exercises = [
   {name:'Brustpresse Maschine', group:'Brust', hl:'chest', unit:'A',
    desc:'Grundübung für die gesamte Brustmuskulatur, sitzend an der Maschine.',
    steps:['Sitzhöhe so einstellen, dass Griffe auf Brusthöhe sind.','Rücken fest an die Lehne, Füße flach am Boden.','Griffe nach vorne drücken, bis Arme fast gestreckt sind (Ellbogen nicht komplett durchdrücken).','Kontrolliert zurück in die Ausgangsposition.'],
-   mistake:'Nicht mit Schwung aus dem Rücken drücken – Bewegung kommt aus Brust/Armen.'},
+   mistake:'Nicht mit Schwung aus dem Rücken drücken – Bewegung kommt aus Brust/Armen.',
+   weightTip:'Starte am leichtesten Steckgewicht bzw. 2.–3. Loch von unten. Fallen dir 12–15 Wiederholungen locker, in der nächsten Einheit eine Stufe (meist 5 kg) höher.'},
   {name:'Schulterpresse Maschine', group:'Schultern', hl:'shoulders', unit:'A',
    desc:'Kräftigt die vordere/seitliche Schulter und stützt Brust-Übungen.',
    steps:['Sitzhöhe so, dass Griffe auf Schulterhöhe starten.','Griffe nach oben drücken bis Arme fast gestreckt.','Langsam kontrolliert absenken.'],
-   mistake:'Kein Hohlkreuz machen – Rücken bleibt an der Lehne.'},
+   mistake:'Kein Hohlkreuz machen – Rücken bleibt an der Lehne.',
+   weightTip:'Die Schulter ist empfindlicher als die Brust – lieber eine Stufe zu leicht als zu schwer starten. Gleiche Steigerungslogik: locker geschafft → nächstes Mal eine Stufe höher.'},
   {name:'Latzug breiter Griff', group:'Rücken', hl:'upperback', unit:'A',
    desc:'Zieht die Stange von oben zur Brust, trainiert v.a. den seitlichen Rücken (Lat).',
    steps:['Breiten Griff wählen, Oberschenkel unter die Polster.','Stange zur oberen Brust ziehen, Brust raus, leicht zurücklehnen.','Schulterblätter dabei bewusst nach unten/zusammenziehen.','Langsam wieder nach oben führen, Arme fast strecken.'],
-   mistake:'Nicht hinter den Nacken ziehen – das belastet die Schulter unnötig.'},
+   mistake:'Nicht hinter den Nacken ziehen – das belastet die Schulter unnötig.',
+   weightTip:'Oft reicht anfangs schon ein geringer Teil des Gewichtsstapels (z. B. 20–30 kg). Sind die letzten Wiederholungen der letzten Serie noch locker, eine Stufe höher gehen.'},
   {name:'Butterfly / Pec Deck', group:'Brust', hl:'chest', unit:'A',
    desc:'Isolationsübung für die Brust, Arme bewegen sich wie beim "Umarmen".',
    steps:['Rücken an die Lehne, Polster/Griffe auf Brusthöhe.','Arme in einer großen Kreisbewegung vor der Brust zusammenführen.','Kurz zusammendrücken, dann langsam wieder öffnen.'],
-   mistake:'Nicht zu weit nach hinten öffnen, wenn die Schulter zieht – Bewegungsradius reduzieren.'},
+   mistake:'Nicht zu weit nach hinten öffnen, wenn die Schulter zieht – Bewegungsradius reduzieren.',
+   weightTip:'Kleiner, isolierter Muskelbereich – bewusst leicht starten (unterste 1–2 Stufen). Bei zu viel Gewicht ist hier die Verletzungsgefahr höher als bei der Brustpresse.'},
   {name:'Trizepsdrücken Kabelzug', group:'Arme (Trizeps)', hl:'triceps', unit:'A',
    desc:'Isolationsübung für den Trizeps (Oberarmrückseite) am hohen Kabelzug.',
    steps:['Griff/Seil am hohen Kabelzug greifen, Ellbogen eng am Körper.','Griff nach unten drücken bis Arme gestreckt sind.','Langsam wieder hochführen, Ellbogen bleiben fixiert.'],
-   mistake:'Ellbogen nicht vom Körper wegbewegen – sonst übernimmt die Schulter.'},
+   mistake:'Ellbogen nicht vom Körper wegbewegen – sonst übernimmt die Schulter.',
+   weightTip:'Leicht starten (oft reichen 10–15 kg) – der Trizeps ermüdet schnell, Technik geht klar vor Gewicht.'},
   {name:'Rudergerät sitzend (Kabelzug)', group:'Rücken', hl:'upperback', unit:'B',
    desc:'Zieht den Griff horizontal zum Bauch, kräftigt den gesamten mittleren Rücken.',
    steps:['Aufrecht sitzen, leichte Beugung in den Knien, Griff mit beiden Händen fassen.','Griff zum unteren Bauch/Bauchnabel ziehen, Ellbogen nah am Körper.','Schulterblätter zusammenziehen, kurz halten.','Kontrolliert zurückführen, Arme fast strecken.'],
-   mistake:'Nicht mit dem Oberkörper nach hinten schaukeln – Rücken bleibt stabil.'},
+   mistake:'Nicht mit dem Oberkörper nach hinten schaukeln – Rücken bleibt stabil.',
+   weightTip:'Ähnlich wie beim Latzug: mittlere Stufe testen, dann nach Gefühl anpassen (letzte 2–3 Wiederholungen der letzten Serie anstrengend, aber sauber).'},
   {name:'Schrägbankpresse Maschine', group:'Brust (oberer Teil)', hl:'chest', unit:'B',
    desc:'Wie Brustpresse, aber mit Neigung nach oben – betont den oberen Brustmuskel.',
    steps:['Falls Schräg-Variante nicht vorhanden: normale Brustpresse mit Griffen etwas höher ansetzen.','Rücken fest an Lehne, Griffe schräg nach oben drücken.','Kontrolliert zurückführen.'],
-   mistake:'Zu starke Neigung nimmt Belastung von der Brust auf die Schulter.'},
+   mistake:'Zu starke Neigung nimmt Belastung von der Brust auf die Schulter.',
+   weightTip:'Meist etwas weniger Gewicht möglich als bei der normalen Brustpresse – eine Stufe niedriger starten und von dort steigern.'},
   {name:'Reverse Butterfly (Rear Delt)', group:'Rücken/hintere Schulter', hl:'reardelt', unit:'B',
    desc:'Pec Deck rückwärts benutzt – kräftigt hintere Schulter und oberen Rücken, wichtig für Haltung.',
    steps:['Brust an das Polster lehnen (Blick zur Maschine).','Griffe seitlich mit leicht gebeugten Armen nach hinten ziehen.','Schulterblätter zusammenziehen, kurz halten, langsam zurück.'],
-   mistake:'Nicht mit viel Gewicht arbeiten – diese Muskeln sind klein, Technik zählt mehr als Gewicht.'},
+   mistake:'Nicht mit viel Gewicht arbeiten – diese Muskeln sind klein, Technik zählt mehr als Gewicht.',
+   weightTip:'Unterste Gewichtsstufe wählen, Ego zuhause lassen. Lieber 15 saubere Wiederholungen als 8 mit Schwung.'},
   {name:'Dip-Maschine (assistiert)', group:'Brust/Trizeps', hl:'triceps', unit:'B',
    desc:'Assistierte Dip-Maschine gleicht einen Teil des Körpergewichts aus – gute Anfänger-Variante für Dips.',
    steps:['Gegengewicht so einstellen, dass 8–12 saubere Wiederholungen möglich sind.','Knie auf die Plattform, Griffe fassen, Oberkörper leicht vorgebeugt für mehr Brustbeteiligung.','Nach unten absenken bis Oberarm ca. parallel zum Boden, dann hochdrücken.'],
-   mistake:'Nicht zu tief absenken, wenn die Schulter vorne zieht.'},
+   mistake:'Nicht zu tief absenken, wenn die Schulter vorne zieht.',
+   weightTip:'Achtung, hier ist es umgekehrt: mehr eingestelltes Gegengewicht = leichter (die Maschine unterstützt dich stärker). Starte mit hoher Unterstützung (z. B. 40–50 kg) und reduziere sie schrittweise, sobald 10–12 Wiederholungen leicht fallen.'},
   {name:'Bizeps Curl Maschine/Kabelzug', group:'Arme (Bizeps)', hl:'biceps', unit:'B',
    desc:'Isolationsübung für den Bizeps (Oberarm-Vorderseite).',
    steps:['Ellbogen auf dem Polster/am Körper fixieren.','Griff nach oben zur Schulter curlen.','Oben kurz anspannen, dann langsam strecken.'],
-   mistake:'Nicht mit Schwung aus der Schulter arbeiten – Ellbogen bleibt fix.'},
+   mistake:'Nicht mit Schwung aus der Schulter arbeiten – Ellbogen bleibt fix.',
+   weightTip:'Leicht starten (oft 10–15 kg) – der Bizeps ist klein, sauberes Curlen ohne Schwung zählt mehr als das Gewicht.'},
   {name:'Bauchmaschine / Plank', group:'Bauch (optional)', hl:'core', unit:'A/B',
    desc:'Kurzer Rumpf-Abschluss am Ende jeder Einheit – optional, aber gut für Haltung und Stabilität.',
    steps:['Maschine: Oberkörper langsam nach vorne/unten einrollen, Bauch anspannen.','Oder Unterarmstütz (Plank): Körper gerade halten, Bauch/Po anspannen, 20–45 Sek. halten.'],
-   mistake:'Beim Plank kein Hohlkreuz oder Rundrücken – Körper bildet eine gerade Linie.'}
+   mistake:'Beim Plank kein Hohlkreuz oder Rundrücken – Körper bildet eine gerade Linie.',
+   weightTip:'An der Maschine reicht anfangs oft schon das Eigengewicht des Aufsatzes ohne Zusatzgewicht. Beim Plank zählt nur die gehaltene Zeit, kein Gewicht nötig.'}
 ];
 function exercisesFor(unit){ return exercises.filter(e => e.unit===unit || e.unit==='A/B'); }
+
+/* ---------- Übungs-Detailseite (aus Heute anspringbar) ---------- */
+function showExerciseDetail(name){
+  const ex = exercises.find(e=>e.name===name);
+  if(!ex) return;
+  document.getElementById('exerciseDetailContent').innerHTML = `
+    <div class="card">
+      <div class="exCard">
+        ${bodySvg(ex.hl)}
+        <div style="flex:1;min-width:0;">
+          <h2 style="margin:0;">${ex.name}</h2>
+          <span class="badge">${ex.group}</span>
+        </div>
+      </div>
+      <p style="margin-top:8px;">${ex.desc}</p>
+      <h3>Ausführung</h3>
+      <ul class="steps">${ex.steps.map(s=>`<li>${s}</li>`).join('')}</ul>
+      <h3>Häufiger Fehler</h3>
+      <p>${ex.mistake}</p>
+      <h3>Welches Gewicht wählen?</h3>
+      <p>${ex.weightTip}</p>
+      <p class="sub">Faustregel für jede Übung: Die letzten 2–3 Wiederholungen der letzten Serie sollten anstrengend, aber mit sauberer Technik noch machbar sein. Zu leicht → nächstes Mal eine Stufe höher. Technik leidet oder Zielwiederholungen nicht erreicht → eine Stufe runter.</p>
+      <a class="ytbtn" href="${ytLink(ex.name)}" target="_blank" rel="noopener">▶ Video-Anleitungen auf YouTube suchen</a>
+    </div>`;
+  document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-exercise-detail').classList.add('active');
+  window.scrollTo(0,0);
+}
+function closeExerciseDetail(){
+  document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-today').classList.add('active');
+  window.scrollTo(0,0);
+}
 
 const PROGRESSION = [
   {sets:3, reps:'12–15', rpe:'6–7', label:'Technik lernen'},
@@ -394,6 +453,8 @@ document.getElementById('exerciseCards').innerHTML = exercises.map(ex => `
     <ul class="steps">${ex.steps.map(s=>`<li>${s}</li>`).join('')}</ul>
     <h3>Häufiger Fehler</h3>
     <p>${ex.mistake}</p>
+    <h3>Welches Gewicht wählen?</h3>
+    <p>${ex.weightTip}</p>
     <a class="ytbtn" href="${ytLink(ex.name)}" target="_blank" rel="noopener">▶ Video-Anleitungen auf YouTube suchen</a>
   </div>
 `).join('');
@@ -504,21 +565,16 @@ function renderToday(){
     strengthContent.innerHTML = `<p class="sub">Wird erst an diesem Tag final berechnet – abhängig davon, wie dein Training bis dahin läuft.</p>`;
   } else if(day.rest){
     strengthContent.innerHTML = `<p class="sub">Als Ruhetag/Reisetag markiert – kein Training vorgeschlagen. Die fällige Einheit rutscht automatisch auf den nächsten passenden Tag.</p>`;
-  } else if(day.strengthDone){
-    const unit = day.unit;
-    const wk = cycleWeekFor(key); // Woche zum Zeitpunkt VOR dieser Einheit – für Anzeige ok
-    strengthContent.innerHTML = `
-      <div class="okbox">✅ Erledigt: <b>Einheit ${unit}</b> (${PROGRESSION[wk].label}, ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps})</div>
-      <div class="checkline"><input type="checkbox" checked id="undoStrength"><div class="clabel">Als nicht erledigt markieren</div></div>`;
-    document.getElementById('undoStrength').onchange = ()=>{ day.strengthDone=false; day.unit=null; saveDays(); renderToday(); };
   } else {
+    const startedToday = day.strengthDone || Object.values(day.exDone||{}).some(v=>v);
     const sessionsWeek = sessionsInTrailingWeek(key);
     const sinceLast = daysSinceLastSession(key);
     let due = true, reason = '';
-    if(bigRide){ due=false; reason = `Große Radausfahrt heute (${day.km||0} km / ${day.elev||0} Hm) – heute Erholung, keine zusätzliche Krafteinheit.`; }
-    else if(sinceLast===0){ due=false; reason = 'Heute schon erledigt.'; }
-    else if(sinceLast===1){ due=false; reason = 'Gestern trainiert – heute Pause zur Erholung, morgen ggf. wieder fällig.'; }
-    else if(sessionsWeek>=profile.target){ due=false; reason = `Wochenziel schon erreicht (${sessionsWeek}/${profile.target}) – heute Pause.`; }
+    if(!startedToday){
+      if(bigRide){ due=false; reason = `Große Radausfahrt heute (${day.km||0} km / ${day.elev||0} Hm) – heute Erholung, keine zusätzliche Krafteinheit.`; }
+      else if(sinceLast===1){ due=false; reason = 'Gestern trainiert – heute Pause zur Erholung, morgen ggf. wieder fällig.'; }
+      else if(sessionsWeek>=profile.target){ due=false; reason = `Wochenziel schon erreicht (${sessionsWeek}/${profile.target}) – heute Pause.`; }
+    }
 
     if(!due){
       strengthContent.innerHTML = `<p class="sub">${reason}</p>`;
@@ -526,15 +582,33 @@ function renderToday(){
       const unit = nextUnitFor(key);
       const wk = cycleWeekFor(key);
       const list = exercisesFor(unit);
+      const requiredNames = list.filter(e=>e.unit===unit).map(e=>e.name);
       const dur = Math.round(list.length*7/5)*5;
+      const banner = day.strengthDone
+        ? `<div class="okbox">✅ Einheit ${unit} heute erledigt – tippe eine Übung an für Ausführung & Gewichtswahl.</div>`
+        : `<p><b>Einheit ${unit}</b> fällig – ${PROGRESSION[wk].label} <span class="badge ${unit==='A'?'accent':'accent2'}">Woche ${wk+1}/4</span></p>
+           <p class="sub">Sätze/Wdh.: ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps} · RPE ${PROGRESSION[wk].rpe} · ca. ${dur} Min. im Studio</p>`;
       strengthContent.innerHTML = `
-        <p><b>Einheit ${unit}</b> fällig – ${PROGRESSION[wk].label} <span class="badge ${unit==='A'?'accent':'accent2'}">Woche ${wk+1}/4</span></p>
-        <p class="sub">Sätze/Wdh.: ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps} · RPE ${PROGRESSION[wk].rpe} · ca. ${dur} Min. im Studio</p>
-        <ul class="exlist">${list.map(e=>`<li>${e.name} <small>${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps}</small></li>`).join('')}</ul>
-        <div class="checkline"><input type="checkbox" id="doStrength"><div class="clabel">Erledigt<small>Einheit ${unit} abgehakt</small></div></div>`;
-      document.getElementById('doStrength').onchange = (e)=>{
-        if(e.target.checked){ day.strengthDone=true; day.unit=unit; saveDays(); renderToday(); }
-      };
+        ${banner}
+        <ul class="exlist">${list.map((e,i)=>`
+          <li class="exrow">
+            <input type="checkbox" id="exdone_${i}" ${day.exDone[e.name]?'checked':''}>
+            <span class="exname" data-i="${i}">${e.name}${e.unit==='A/B'?' <small>(optional)</small>':`<small>${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps}</small>`}</span>
+            <span class="chev">›</span>
+          </li>`).join('')}</ul>
+        <p class="sub" style="margin-top:8px;">Tippe auf eine Übung für Ausführung, Video und Gewichtswahl. Häkchen setzen, sobald du sie im Studio gemacht hast.</p>`;
+      list.forEach((e,i)=>{
+        document.getElementById('exdone_'+i).onchange = (ev)=>{
+          day.exDone[e.name] = ev.target.checked;
+          const allRequiredDone = requiredNames.every(n=>day.exDone[n]);
+          day.strengthDone = allRequiredDone;
+          day.unit = allRequiredDone ? unit : null;
+          saveDays(); renderToday();
+        };
+      });
+      strengthContent.querySelectorAll('.exname').forEach(el=>{
+        el.addEventListener('click', ()=>{ showExerciseDetail(list[parseInt(el.dataset.i)].name); });
+      });
     }
   }
 
