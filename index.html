@@ -355,7 +355,7 @@
       <h2>Supplements (ESN)</h2>
       <p><b>ESN Designer Whey</b> <span class="badge accent">täglich</span> – 1 Shake (30&nbsp;g ≈ 24&nbsp;g Protein) nach dem Krafttraining, an anderen Tagen optional zum Schließen der Proteinlücke. Max. 1–2 Shakes/Tag.</p>
       <p><b>ESN Ultrapure Whey Isolate</b> <span class="badge">Alternative</span> – bekömmlicher bei empfindlichem Magen (weniger Fett/Laktose).</p>
-      <p><b>ESN Creapure Kreatin Monohydrat</b> <span class="badge accent2">täglich</span> – 3–5&nbsp;g täglich, auch an Ruhetagen, keine Ladephase nötig. Beschleunigt Kraft-/Muskelaufbau spürbar – für Vegetarier besonders sinnvoll, da du über die Ernährung (kein Fleisch) weniger davon aufnimmst als sonst üblich.</p>
+      <p><b>ESN Creapure Kreatin Monohydrat</b> <span class="badge accent2">täglich</span> – 3–5&nbsp;g täglich, auch an Ruhetagen und Cheatdays, keine Ladephase nötig. Beschleunigt Kraft-/Muskelaufbau spürbar – für Vegetarier besonders sinnvoll, da du über die Ernährung (kein Fleisch) weniger davon aufnimmst als sonst üblich. Steht im Tab "Heute" jeden Tag zum Abhaken, auch an Cheatdays.</p>
       <p><b>Optional:</b> ESN Multivitamin, falls wenig Gemüse/Obst auf dem Speiseplan steht. Für Omega-3 als Vegetarier: pflanzliches Algenöl statt Fischöl (ESN führt kein Algenöl-Produkt).</p>
       <div class="warn"><b>Hinweis:</b> Bei Vorerkrankungen (z.&nbsp;B. Nieren) vorher kurz ärztlich absprechen, ausreichend Wasser trinken.</div>
     </div>
@@ -641,14 +641,17 @@ function showShoppingList(){
     if(days[k] && days[k].strengthDone) sessionsDoneThisWeek++;
   }
   let remainingNonRestDays = 0;
+  let creatineDays = 0;
 
   while(cur.getTime() <= end.getTime()){
     const k = keyOf(cur);
     const wIdx = (cur.getDay()+6)%7;
     const dayLog = days[k];
     const isRest = dayLog && dayLog.rest;
+    const creatineDone = first && dayLog && dayLog.meals && dayLog.meals.creatine;
+    if(!creatineDone) creatineDays++;
     if(isRest){
-      notes.push(`${WD_LABELS[wIdx]} (${pad(cur.getDate())}.${pad(cur.getMonth()+1)}.): als Ruhetag/Cheatday markiert – nicht mit eingerechnet.`);
+      notes.push(`${WD_LABELS[wIdx]} (${pad(cur.getDate())}.${pad(cur.getMonth()+1)}.): als Ruhetag/Cheatday markiert – nur Kreatin zählt an diesem Tag mit.`);
       cur = addDays(cur,1); first=false; continue;
     }
     remainingNonRestDays++;
@@ -690,6 +693,10 @@ function showShoppingList(){
           <input type="checkbox" id="shop_whey" ${checks['__whey']?'checked':''}>
           <div class="clabel">ESN Whey Protein (für Shakes)<small>ca. ${sessionsRemaining}× Training diese Woche noch zu erwarten → ca. ${sessionsRemaining*30} g</small></div>
         </div>
+        <div class="checkline">
+          <input type="checkbox" id="shop_creatine" ${checks['__creatine']?'checked':''}>
+          <div class="clabel">ESN Creapure Kreatin Monohydrat<small>${creatineDays} Tage (täglich, auch Cheatdays) → ca. ${creatineDays*4} g</small></div>
+        </div>
       </div>
     </div>`);
 
@@ -697,6 +704,7 @@ function showShoppingList(){
     document.getElementById('shop_'+i).onchange = e=>{ checks[it.item]=e.target.checked; saveJSON('shoppingChecks_'+weekKey, checks); };
   });
   document.getElementById('shop_whey').onchange = e=>{ checks['__whey']=e.target.checked; saveJSON('shoppingChecks_'+weekKey, checks); };
+  document.getElementById('shop_creatine').onchange = e=>{ checks['__creatine']=e.target.checked; saveJSON('shoppingChecks_'+weekKey, checks); };
 }
 
 const PROGRESSION = [
@@ -748,7 +756,14 @@ const SHAKE = { name:'Post-Workout Shake', carb:null,
     {item:'ESN Whey Protein', qty:30, unit:'g (1 Scoop)'},
     {item:'Wasser', qty:300, unit:'ml'}
   ],
-  steps:['Beides in den Shaker geben.','20 Sekunden schütteln.','Direkt nach dem Training trinken.'] };
+  steps:['Beides in den Shaker geben.','20 Sekunden schütteln.','Direkt nach dem Training trinken.','Tipp: Rühr dein tägliches Kreatin (siehe eigener Punkt "Kreatin") gleich mit in diesen Shake ein, dann sparst du dir ein zweites Glas.'] };
+
+const CREATINE = { name:'ESN Creapure Kreatin Monohydrat', carb:null,
+  extra:[
+    {item:'ESN Creapure Kreatin Monohydrat', qty:4, unit:'g'},
+    {item:'Wasser, Saft oder Shake', qty:1, unit:'Glas'}
+  ],
+  steps:['3–5 g einfach in Wasser, Saft oder deinen Shake einrühren.','Uhrzeit ist egal, Hauptsache täglich – auch an Ruhetagen und Cheatdays, keine Ladephase nötig.','Am einfachsten: fix mit einer Mahlzeit oder dem Post-Workout-Shake kombinieren, damit du es nicht vergisst.'] };
 
 const LUNCHES = [
   { name:'Tofu-Reis-Bowl mit Gemüse', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
@@ -978,7 +993,15 @@ function renderToday(){
   const restNote = document.getElementById('nutritionRestNote');
   const trackingBlock = document.getElementById('nutritionTracking');
   if(day.rest){
-    restNote.innerHTML = `<p class="sub">Cheatday – heute wird keine Ernährung getrackt und nichts zum Abhaken vorgeschlagen. Die Einkaufsliste unten bleibt trotzdem nutzbar.</p>`;
+    restNote.innerHTML = `<p class="sub">Cheatday – heute wird keine Ernährung getrackt. Nur das tägliche Kreatin bleibt zum Abhaken, das gilt auch an Cheatdays.</p>
+      <div class="exrow">
+        <input type="checkbox" id="meal_creatine" ${day.meals.creatine?'checked':''}>
+        <span class="exicon">💊</span>
+        <span class="exname" id="creatineLinkRest">${CREATINE.name}<small>Täglich</small></span>
+        <span class="chev">›</span>
+      </div>`;
+    document.getElementById('meal_creatine').onchange = e=>{ day.meals.creatine=e.target.checked; saveDays(); };
+    document.getElementById('creatineLinkRest').addEventListener('click', ()=>showRecipeDetail(CREATINE, null, '💊'));
     trackingBlock.style.display = 'none';
     return;
   }
@@ -999,6 +1022,7 @@ function renderToday(){
   const dinnerQty = dinner.carb ? scaledQty(dinner.carb.base) : null;
 
   const mealDefs = [
+    {key:'creatine', type:'Täglich', icon:'💊', recipe:CREATINE, qty:null},
     {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, qty:null},
     {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, qty:lunchQty},
     {key:'shake', type:'Post-Workout', icon:'🥤', recipe:SHAKE, qty:null, onlyIfTraining:true},
