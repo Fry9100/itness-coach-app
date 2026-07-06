@@ -329,7 +329,7 @@
         <div><label>Ziel-Einheiten/Woche</label><input type="number" id="in_target" value="4"></div>
       </div>
       <label>Kaloriendefizit pro Tag (kcal)</label>
-      <input type="number" id="in_deficit" value="500">
+      <input type="number" id="in_deficit" value="500" min="0">
       <p class="sub" style="margin-top:8px;">Angenommen: keine Ernährungseinschränkungen. Sag Bescheid, falls vegetarisch/vegan/laktosefrei zutrifft.</p>
     </div>
 
@@ -445,7 +445,7 @@ function saveProfile(){
   if(!isNaN(h)) profile.height = clamp(h, 100, 250);
   if(!isNaN(a)) profile.age = clamp(a, 10, 100);
   if(!isNaN(t)) profile.target = clamp(t, 1, 14);
-  profile.deficit = isNaN(d) ? 0 : clamp(d, -1000, 2000);
+  profile.deficit = isNaN(d) ? 0 : clamp(d, 0, 2000);
   saveJSON('profile', profile);
   renderToday();
 }
@@ -876,7 +876,8 @@ function computeMacros(km, elev, strengthToday){
   const strengthKcal = strengthToday ? 300 : 0;
   const maint = neat + bikeKcal + strengthKcal;
   const safetyFloor = Math.max(1500, bmr*0.9);
-  const target = Math.max(maint - profile.deficit, safetyFloor);
+  // Harte Garantie: das Ziel darf NIE über der Erhaltung liegen, egal was Profil/Defizit/Untergrenze ergeben - kein Kalorienüberschuss, niemals.
+  const target = Math.min(Math.max(maint - profile.deficit, safetyFloor), maint);
   const proteinG = profile.weight*2.2;
   const fatG = profile.weight*0.9;
   const carbKcal = Math.max(target - proteinG*4 - fatG*9, 0);
