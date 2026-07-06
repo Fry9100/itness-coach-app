@@ -753,10 +753,12 @@ const LUNCHES = [
   { name:'Veggie-Geschnetzeltes (Soja) + Reis', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Soja-Geschnetzeltes', qty:150, unit:'g'},{item:'Gemüse (Paprika/Zwiebel)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Reis kochen, Soja-Geschnetzeltes anbraten, Gemüse dazugeben, mit Sojasauce würzen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen.'] },
-  { name:'Frei wählbar (vegetarisch, Protein-Fokus)', freeform:true,
-    note:'Iss, worauf du Lust hast (z. B. Restaurant) – achte nur auf ausreichend Protein (Käse, Ei, Hülsenfrüchte, Tofu).' },
-  { name:'Meal-Prep für die Woche', freeform:true,
-    note:'Nutze den Sonntag, um für Montag bis Freitag vorzukochen – z. B. gleich 2–3 der Wochenrezepte in größerer Menge zubereiten und in Boxen portionieren. So musst du unter der Woche abends nur noch kurz nachkochen oder gar nicht.' }
+  { name:'Gefüllte Paprika mit Reis und Käse', carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+    extra:[{item:'Paprika, groß (zum Füllen)', qty:2, unit:'Stk'},{item:'Käse gerieben', qty:60, unit:'g'},{item:'Passierte Tomaten', qty:150, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'}],
+    steps:['Reis halb gar vorkochen.','Paprika halbieren, entkernen, mit Reis, kleingeschnittener Zwiebel und etwas passierter Tomate füllen.','Mit Käse bestreuen, bei 200°C ca. 25–30 Min. backen.','Heiß servieren – am Wochenende Zeit für frisches Kochen statt Meal Prep.'] },
+  { name:'Veganes Chili sin Carne mit Reis', carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+    extra:[{item:'Kidneybohnen (Dose, abgetropft)', qty:240, unit:'g'},{item:'Mais (Dose, abgetropft)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Paprika', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Chilipulver', qty:1, unit:'TL'}],
+    steps:['Zwiebel und Paprika klein schneiden, kurz anbraten.','Bohnen, Mais und passierte Tomaten dazugeben, mit Chilipulver 15–20 Min. köcheln.','Reis parallel kochen.','Ruhig eine größere Menge kochen und 2–3 Portionen für die kommende Woche kühl/eingefroren aufheben – guter Meal-Prep-Start in die Woche.'] }
 ];
 
 const DINNERS = [
@@ -775,8 +777,9 @@ const DINNERS = [
   { name:'Käsespätzle + Ofengemüse', carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
     extra:[{item:'Bergkäse gerieben', qty:60, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Ofengemüse', qty:200, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Ofengemüse wie gewohnt rösten (200°C, 20–25 Min.).','Spätzle kochen.','Zwiebel in Öl goldbraun braten, Spätzle und Käse untermischen bis der Käse schmilzt.','Mit Gemüse servieren.'] },
-  { name:'Frei wählbar (vegetarisch, Protein-Fokus)', freeform:true,
-    note:'Iss, worauf du Lust hast (z. B. Restaurant) – achte nur auf ausreichend Protein (Käse, Ei, Hülsenfrüchte, Tofu).' },
+  { name:'Linsen-Bolognese mit Vollkornnudeln', carb:{item:'Vollkornnudeln (roh)', base:90, unit:'g'},
+    extra:[{item:'Rote Linsen (roh)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Karotte', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Olivenöl', qty:1, unit:'TL'}],
+    steps:['Zwiebel und Karotte klein schneiden, in Öl anschwitzen.','Linsen und passierte Tomaten dazugeben, mit etwas Wasser 15–20 Min. köcheln bis die Linsen weich sind.','Nudeln parallel kochen.','Mit der Linsen-Bolognese servieren.'] },
   { name:'Leicht, z. B. Gemüsesuppe + Ei', carb:null,
     extra:[{item:'Gemüsesuppe', qty:300, unit:'g'},{item:'Eier', qty:2, unit:'Stk'}],
     steps:['Suppe erhitzen.','Eier 8–10 Min. hart kochen, schälen.','Zusammen servieren.'] }
