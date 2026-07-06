@@ -790,6 +790,31 @@ const CREATINE = { name:'ESN Creapure Kreatin Monohydrat', carb:null,
   ],
   steps:['3–5 g einfach in Wasser, Saft oder deinen Shake einrühren.','Uhrzeit ist egal, Hauptsache täglich – auch an Ruhetagen und Cheatdays, keine Ladephase nötig.','Am einfachsten: fix mit einer Mahlzeit oder dem Post-Workout-Shake kombinieren, damit du es nicht vergisst.'] };
 
+const MEDICATION = { name:'Medikament (morgens)', carb:null,
+  extra:[{item:'Tablette', qty:1, unit:'Stk'}],
+  steps:['Dein verordnetes Medikament jeden Morgen zur gleichen Uhrzeit einnehmen, am besten mit einem Glas Wasser.','Nach ärztlicher Verordnung – bei Fragen zu Dosierung/Timing deinen Arzt/deine Ärztin fragen.'] };
+
+const MAGNESIUM_AM = { name:'Magnesium (morgens)', carb:null,
+  extra:[{item:'Magnesium', qty:1, unit:'Tablette/Kapsel'}],
+  steps:['Mit Wasser oder zum Frühstück einnehmen.'] };
+
+const MAGNESIUM_PM = { name:'Magnesium (abends)', carb:null,
+  extra:[{item:'Magnesium', qty:1, unit:'Tablette/Kapsel'}],
+  steps:['Am Abend einnehmen – kann zusätzlich Schlafqualität und Muskelentspannung nach dem Training unterstützen.'] };
+
+const VITAMIN_D3 = { name:'Vitamin D3', carb:null,
+  extra:[{item:'Vitamin D3', qty:1, unit:'Tropfen/Kapsel'}],
+  steps:['Am besten zu einer Mahlzeit mit etwas Fett einnehmen (z. B. zum Frühstück) – Vitamin D ist fettlöslich und wird so besser aufgenommen.'] };
+
+/* Tägliche Einnahmen (Medikament/Supplements) – gelten jeden Tag, auch an Cheatdays */
+const DAILY_INTAKE = [
+  {key:'medication', type:'Morgens', icon:'💊', recipe:MEDICATION},
+  {key:'magnesiumAm', type:'Morgens', icon:'⚪', recipe:MAGNESIUM_AM},
+  {key:'vitaminD3', type:'Morgens', icon:'☀️', recipe:VITAMIN_D3},
+  {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE},
+  {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM}
+];
+
 const LUNCHES = [
   { name:'Tofu-Reis-Bowl mit Gemüse', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Karotten)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
@@ -1027,15 +1052,24 @@ function renderToday(){
   const restNote = document.getElementById('nutritionRestNote');
   const trackingBlock = document.getElementById('nutritionTracking');
   if(day.rest){
-    restNote.innerHTML = `<p class="sub">Cheatday – heute wird keine Ernährung getrackt. Nur das tägliche Kreatin bleibt zum Abhaken, das gilt auch an Cheatdays.</p>
+    restNote.innerHTML = `<p class="sub">Cheatday – heute wird keine Ernährung getrackt. Nur deine täglichen Medikamente/Supplements bleiben zum Abhaken, die gelten auch an Cheatdays.</p>
+      <div id="restDailyIntake"></div>`;
+    document.getElementById('restDailyIntake').innerHTML = DAILY_INTAKE.map(d=>`
       <div class="exrow">
-        <input type="checkbox" id="meal_creatine" ${day.meals.creatine?'checked':''}>
-        <span class="exicon">💊</span>
-        <span class="exname" id="creatineLinkRest">${CREATINE.name}<small>Täglich</small></span>
+        <input type="checkbox" id="rest_${d.key}" ${day.meals[d.key]?'checked':''}>
+        <span class="exicon">${d.icon}</span>
+        <span class="exname" data-key="${d.key}">${d.recipe.name}<small>${d.type}</small></span>
         <span class="chev">›</span>
-      </div>`;
-    document.getElementById('meal_creatine').onchange = e=>{ day.meals.creatine=e.target.checked; saveDays(); };
-    document.getElementById('creatineLinkRest').addEventListener('click', ()=>showRecipeDetail(CREATINE, null, '💊'));
+      </div>`).join('');
+    DAILY_INTAKE.forEach(d=>{
+      document.getElementById('rest_'+d.key).onchange = e=>{ day.meals[d.key]=e.target.checked; saveDays(); };
+    });
+    document.getElementById('restDailyIntake').querySelectorAll('.exname').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const d = DAILY_INTAKE.find(x=>x.key===el.dataset.key);
+        showRecipeDetail(d.recipe, null, d.icon);
+      });
+    });
     trackingBlock.style.display = 'none';
     return;
   }
@@ -1059,12 +1093,16 @@ function renderToday(){
   const dinnerQty = dinner.carb ? scaledQty(dinner.carb.base) : null;
 
   const mealDefs = [
-    {key:'creatine', type:'Täglich', icon:'💊', recipe:CREATINE, qty:null},
+    {key:'medication', type:'Morgens', icon:'💊', recipe:MEDICATION, qty:null},
+    {key:'magnesiumAm', type:'Morgens', icon:'⚪', recipe:MAGNESIUM_AM, qty:null},
+    {key:'vitaminD3', type:'Morgens', icon:'☀️', recipe:VITAMIN_D3, qty:null},
     {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, qty:null},
     {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, qty:lunchQty},
+    {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE, qty:null},
     {key:'shake', type:'Post-Workout', icon:'🥤', recipe:SHAKE, qty:null, onlyIfTraining:true},
     {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, qty:null},
-    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, qty:dinnerQty}
+    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, qty:dinnerQty},
+    {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM, qty:null}
   ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone);
 
   document.getElementById('mealList').innerHTML = mealDefs.map(m=>`
