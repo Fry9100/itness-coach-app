@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fitness Coach">
+<meta name="theme-color" content="#0f172a">
+<title>Dein Fitness-Coach</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f172a'/%3E%3Ctext x='50' y='64' font-size='54' text-anchor='middle'%3E💪%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f172a'/%3E%3Ctext x='50' y='64' font-size='54' text-anchor='middle'%3E💪%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --text:#12141a; --sub:#5a5f6b;
+    --accent:#e0552b; --accent2:#1f7a5c; --line:#e6e7eb; --chip:#eef0f3;
+    --danger:#b3261e; --ok:#1f7a5c; --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1115; --card:#1a1d24; --text:#f2f3f5; --sub:#9aa0ac;
+      --accent:#ff7a4d; --accent2:#34c28f; --line:#2a2d35; --chip:#22252d;
+      --ok:#34c28f; --shadow: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
+    height:100%; overscroll-behavior-y:none;}
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+  header.top{position:sticky;top:0;z-index:20;background:var(--bg);
+    padding:calc(14px + env(safe-area-inset-top)) 16px 8px;border-bottom:1px solid var(--line);}
+  header.top h1{font-size:19px;margin:0 0 2px;font-weight:700;letter-spacing:-.2px;}
+  header.top p{margin:0;color:var(--sub);font-size:12.5px;}
+  main{padding:14px 14px 24px;max-width:640px;margin:0 auto;}
+  section.view{display:none;}
+  section.view.active{display:block; animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .card h2{margin:0 0 10px;font-size:15.5px;font-weight:700;}
+  .card h3{margin:14px 0 6px;font-size:13.5px;font-weight:700;color:var(--accent);
+    text-transform:uppercase;letter-spacing:.4px;}
+  .card p{margin:0 0 8px;font-size:14px;line-height:1.5;color:var(--text);}
+  .sub{color:var(--sub) !important;font-size:12.5px !important;}
+  .badge{display:inline-block;background:var(--chip);color:var(--text);font-size:11.5px;
+    font-weight:600;padding:3px 9px;border-radius:99px;margin:0 4px 4px 0;}
+  .badge.accent{background:var(--accent);color:#fff;}
+  .badge.accent2{background:var(--accent2);color:#fff;}
+  .badge.ok{background:var(--ok);color:#fff;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .stat{background:var(--chip);border-radius:12px;padding:10px;text-align:center;}
+  .stat b{display:block;font-size:17px;}
+  .stat span{font-size:10.5px;color:var(--sub);}
+  label{display:block;font-size:12px;color:var(--sub);margin:8px 0 4px;}
+  input[type=number]{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text);font-size:15px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
+  th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);}
+  th{color:var(--sub);font-weight:600;font-size:11.5px;text-transform:uppercase;}
+  .exlist{list-style:none;margin:8px 0 0;padding:0;}
+  .exlist li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;
+    border-top:1px dashed var(--line);font-size:13.5px;}
+  .exlist li:first-child{border-top:none;}
+  .exlist small{color:var(--sub);white-space:nowrap;}
+  .checkline{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
+  .checkline:first-of-type{border-top:none;}
+  .checkline input{width:20px;height:20px;flex:0 0 auto;}
+  .checkline .clabel{flex:1;font-size:13.5px;}
+  .checkline .clabel small{display:block;color:var(--sub);font-size:11.5px;}
+  .exCard{display:flex;gap:12px;align-items:flex-start;}
+  .exCard svg{flex:0 0 74px;width:74px;height:118px;background:var(--chip);border-radius:10px;padding:4px;}
+  .hl{fill:var(--accent);opacity:.85;}
+  .base{fill:var(--sub);opacity:.35;}
+  .steps{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.55;}
+  .steps li{margin-bottom:2px;}
+  .ytbtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--chip);
+    color:var(--text);text-decoration:none;font-size:12.5px;font-weight:600;padding:8px 12px;
+    border-radius:10px;border:1px solid var(--line);}
+  .warn{background:rgba(179,38,30,.08);border:1px solid rgba(179,38,30,.25);border-radius:12px;
+    padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--text);}
+  .warn b{color:var(--danger);}
+  .okbox{background:rgba(31,122,92,.08);border:1px solid rgba(31,122,92,.3);border-radius:12px;
+    padding:10px 12px;font-size:13px;line-height:1.5;}
+  button.add, button.pill{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:9px 16px;
+    font-size:13.5px;font-weight:700;}
+  button.pill.secondary{background:var(--chip);color:var(--text);}
+  nav.tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;
+    background:var(--card);border-top:1px solid var(--line);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:30;}
+  nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;
+    align-items:center;gap:2px;color:var(--sub);font-size:10px;font-weight:600;padding:6px 2px;}
+  nav.tabbar button .ic{font-size:20px;}
+  nav.tabbar button.active{color:var(--accent);}
+  .rowflex{display:flex;justify-content:space-between;align-items:center;}
+  /* day strip */
+  .daystrip{display:flex;gap:6px;margin-bottom:12px;}
+  .daychip{flex:1;text-align:center;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:8px 2px;font-size:11px;color:var(--sub);font-weight:600;}
+  .daychip .dnum{display:block;font-size:14px;color:var(--text);margin-top:1px;}
+  .daychip.today{border-color:var(--accent);}
+  .daychip.selected{background:var(--accent);color:#fff;}
+  .daychip.selected .dnum{color:#fff;}
+  .daychip.selected.today{border-color:var(--accent);}
+  .daychip.done .dnum::after{content:" ✓";color:var(--ok);}
+  .daychip.selected.done .dnum::after{color:#fff;}
+  .toggle{display:flex;align-items:center;gap:8px;}
+  .toggle input{width:20px;height:20px;}
+  .num-inline{display:flex;gap:8px;}
+  .num-inline > div{flex:1;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1 id="pageTitle">Heute</h1>
+  <p id="pageSub">Dein persönlicher Trainings- & Ernährungscoach</p>
+</header>
+
+<main>
+
+  <!-- ===================== HEUTE (Tages-Ansicht) ===================== -->
+  <section class="view active" id="view-today">
+
+    <div class="daystrip" id="daystrip"></div>
+
+    <div class="card" id="dayHeaderCard">
+      <h2 id="dayHeaderTitle">Heute</h2>
+      <div class="toggle">
+        <input type="checkbox" id="restToggle">
+        <label style="margin:0;" for="restToggle">Ruhetag / Reisetag / Cheatday (kein Training/Diät-Fokus heute)</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🚴 Radfahren heute</h2>
+      <div class="num-inline">
+        <div><label>Kilometer</label><input type="number" id="in_km" placeholder="0"></div>
+        <div><label>Höhenmeter</label><input type="number" id="in_elev" placeholder="0"></div>
+      </div>
+      <p class="sub" style="margin-top:8px;">Trag ein, was du heute (schon) gefahren bist – Training und Kalorienziel unten passen sich sofort an.</p>
+    </div>
+
+    <div class="card" id="strengthCard">
+      <h2>🏋️ Krafttraining</h2>
+      <div id="strengthContent"></div>
+    </div>
+
+    <div class="card" id="nutritionCard">
+      <h2>🍽️ Ernährung</h2>
+      <div class="grid3">
+        <div class="stat"><b id="out_target">–</b><span>Ziel kcal heute</span></div>
+        <div class="stat"><b id="out_protein">–</b><span>Protein g</span></div>
+        <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
+      </div>
+      <div id="mealList" style="margin-top:6px;"></div>
+    </div>
+
+  </section>
+
+  <!-- ===================== ÜBUNGEN (Nachschlagewerk) ===================== -->
+  <section class="view" id="view-exercises">
+    <div class="card">
+      <h2>Übungs-Nachschlagewerk</h2>
+      <p class="sub">Zielmuskel, Ausführung und ein Link zu Video-Anleitungen für jede Übung aus deinem Plan.</p>
+    </div>
+    <div id="exerciseCards"></div>
+  </section>
+
+  <!-- ===================== MEHR (Profil, Ernährungsprinzipien, Supplements) ===================== -->
+  <section class="view" id="view-more">
+
+    <div class="card">
+      <h2>Dein Profil</h2>
+      <p class="sub">Wird sofort gespeichert und rechnet dein Kalorienziel auf der "Heute"-Seite live neu.</p>
+      <div class="grid2">
+        <div><label>Gewicht (kg)</label><input type="number" id="in_weight" value="99"></div>
+        <div><label>Größe (cm)</label><input type="number" id="in_height" value="189"></div>
+        <div><label>Alter (Jahre)</label><input type="number" id="in_age" value="30"></div>
+        <div><label>Ziel-Einheiten/Woche</label><input type="number" id="in_target" value="3"></div>
+      </div>
+      <label>Kaloriendefizit pro Tag (kcal)</label>
+      <input type="number" id="in_deficit" value="300">
+      <p class="sub" style="margin-top:8px;">Angenommen: keine Ernährungseinschränkungen. Sag Bescheid, falls vegetarisch/vegan/laktosefrei zutrifft.</p>
+    </div>
+
+    <div class="card">
+      <h2>Wie die Anpassung funktioniert</h2>
+      <ul class="steps">
+        <li>Alle 3–4 Tage (mind. 1 Tag Pause dazwischen) schlägt dir die App die nächste Krafteinheit vor (A/B im Wechsel), bis du dein Wochenziel erreicht hast.</li>
+        <li>Verpasst/markierst du einen Tag als Ruhetag, verschiebt sich die fällige Einheit automatisch auf den nächsten passenden Tag – kein Aufholen mit Doppel-Einheiten am selben Tag, das wäre für die Regeneration ungünstig.</li>
+        <li>An Tagen mit großer Radausfahrt (≥70&nbsp;km oder ≥800&nbsp;Hm) schlägt die App bewusst kein zusätzliches Krafttraining vor – Erholung hat Vorrang, die Einheit folgt automatisch am nächsten passenden Tag.</li>
+        <li>Alle 3 absolvierten Einheiten steigt die Woche im 4-Wochen-Progressionsblock (Sätze/Wdh./Gewicht), unabhängig vom Kalenderdatum – die App merkt sich das an deinem tatsächlichen Fortschritt, nicht am Wochentag.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Ernährungsprinzipien</h2>
+      <ul class="steps">
+        <li><b>Protein zuerst:</b> ca. 2&nbsp;g/kg Körpergewicht/Tag, auf 4–5 Mahlzeiten verteilt.</li>
+        <li><b>Kohlenhydrate nach Radlast:</b> je mehr km/Höhenmeter du heute einträgst, desto mehr Reis/Kartoffeln empfiehlt dir die App automatisch.</li>
+        <li><b>Moderates Kaloriendefizit</b> statt Crash-Diät, damit eher Fett statt Muskeln verloren geht.</li>
+        <li>Gemüse zu jeder Hauptmahlzeit, mind. 3&nbsp;Liter trinken, Alkohol nur gelegentlich.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Supplements (ESN)</h2>
+      <p><b>ESN Designer Whey</b> <span class="badge accent">täglich</span> – 1 Shake (30&nbsp;g ≈ 24&nbsp;g Protein) nach dem Krafttraining, an anderen Tagen optional zum Schließen der Proteinlücke. Max. 1–2 Shakes/Tag.</p>
+      <p><b>ESN Ultrapure Whey Isolate</b> <span class="badge">Alternative</span> – bekömmlicher bei empfindlichem Magen (weniger Fett/Laktose).</p>
+      <p><b>ESN Creapure Kreatin Monohydrat</b> <span class="badge accent2">täglich</span> – 3–5&nbsp;g täglich, auch an Ruhetagen, keine Ladephase nötig. Beschleunigt Kraft-/Muskelaufbau spürbar – für Vegetarier besonders sinnvoll, da du über die Ernährung (kein Fleisch) weniger davon aufnimmst als sonst üblich.</p>
+      <p><b>Optional:</b> ESN Multivitamin, falls wenig Gemüse/Obst auf dem Speiseplan steht. Für Omega-3 als Vegetarier: pflanzliches Algenöl statt Fischöl (ESN führt kein Algenöl-Produkt).</p>
+      <div class="warn"><b>Hinweis:</b> Bei Vorerkrankungen (z.&nbsp;B. Nieren) vorher kurz ärztlich absprechen, ausreichend Wasser trinken.</div>
+    </div>
+
+    <div class="card">
+      <h2>Daten</h2>
+      <button class="pill secondary" onclick="resetAllData()">Alle gespeicherten Daten zurücksetzen</button>
+    </div>
+
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button class="tab active" data-view="today" data-title="Heute" data-sub="Dein persönlicher Trainings- & Ernährungscoach">
+    <span class="ic">🏠</span>Heute
+  </button>
+  <button class="tab" data-view="exercises" data-title="Übungen" data-sub="Ausführung, Bilder & Videos">
+    <span class="ic">📖</span>Übungen
+  </button>
+  <button class="tab" data-view="more" data-title="Mehr" data-sub="Profil, Prinzipien & Supplements">
+    <span class="ic">⚙️</span>Mehr
+  </button>
+</nav>
+
+<script>
+/* ---------- Safe storage (falls localStorage in einem eingebetteten Kontext blockiert wird) ---------- */
+const storage = (function(){
+  try { const k='__t'+Date.now(); localStorage.setItem(k,'1'); localStorage.removeItem(k); return localStorage; }
+  catch(e){
+    console.warn('localStorage nicht verfügbar, nutze Session-Speicher im Arbeitsspeicher.', e);
+    const mem = {};
+    return { getItem:k=>(k in mem ? mem[k] : null), setItem:(k,v)=>{mem[k]=String(v);}, removeItem:k=>{delete mem[k];} };
+  }
+})();
+function loadJSON(key, fallback){
+  try { const v = storage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveJSON(key, val){ try { storage.setItem(key, JSON.stringify(val)); } catch(e){ console.warn('Speichern fehlgeschlagen', e); } }
+
+/* ---------- Tab navigation ---------- */
+const tabs = document.querySelectorAll('nav.tabbar .tab');
+tabs.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabs.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    document.getElementById('pageTitle').textContent = btn.dataset.title;
+    document.getElementById('pageSub').textContent = btn.dataset.sub;
+    window.scrollTo(0,0);
+  });
+});
+
+/* ---------- Date helpers ---------- */
+function pad(n){ return String(n).padStart(2,'0'); }
+function keyOf(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayDate(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+const WD_LABELS = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+function mondayOfWeek(d){ const offset = (d.getDay()+6)%7; return addDays(d, -offset); }
+
+const TODAY = todayDate();
+const TODAY_KEY = keyOf(TODAY);
+let selectedKey = TODAY_KEY;
+
+/* ---------- Profile ---------- */
+const profile = Object.assign({ weight:99, height:189, age:30, target:3, deficit:300 }, loadJSON('profile', {}));
+function saveProfile(){
+  profile.weight = parseFloat(document.getElementById('in_weight').value)||profile.weight;
+  profile.height = parseFloat(document.getElementById('in_height').value)||profile.height;
+  profile.age = parseFloat(document.getElementById('in_age').value)||profile.age;
+  profile.target = parseFloat(document.getElementById('in_target').value)||profile.target;
+  profile.deficit = parseFloat(document.getElementById('in_deficit').value)||0;
+  saveJSON('profile', profile);
+  renderToday();
+}
+['in_weight','in_height','in_age','in_target','in_deficit'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.value = profile[id.replace('in_','')];
+  el.addEventListener('input', saveProfile);
+});
+
+/* ---------- Day log storage ---------- */
+let days = loadJSON('days', {});
+function getDay(key){
+  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:[false,false,false,false,false] };
+  return days[key];
+}
+function saveDays(){ saveJSON('days', days); }
+
+/* ---------- Exercises & progression data ---------- */
+const BASE = `<circle class="base" cx="50" cy="16" r="12"/>
+  <rect class="base" x="32" y="30" width="36" height="50" rx="10"/>
+  <rect class="base" x="14" y="32" width="13" height="46" rx="6"/>
+  <rect class="base" x="73" y="32" width="13" height="46" rx="6"/>
+  <rect class="base" x="35" y="80" width="13" height="55" rx="6"/>
+  <rect class="base" x="52" y="80" width="13" height="55" rx="6"/>`;
+const HL = {
+  chest:      `<ellipse class="hl" cx="50" cy="44" rx="15" ry="9"/>`,
+  shoulders:  `<circle class="hl" cx="38" cy="35" r="7"/><circle class="hl" cx="62" cy="35" r="7"/>`,
+  upperback:  `<rect class="hl" x="34" y="33" width="32" height="38" rx="8"/>`,
+  reardelt:   `<circle class="hl" cx="38" cy="35" r="7"/><circle class="hl" cx="62" cy="35" r="7"/>`,
+  biceps:     `<rect class="hl" x="15" y="40" width="11" height="18" rx="4"/><rect class="hl" x="74" y="40" width="11" height="18" rx="4"/>`,
+  triceps:    `<rect class="hl" x="15" y="40" width="11" height="18" rx="4"/><rect class="hl" x="74" y="40" width="11" height="18" rx="4"/>`,
+  core:       `<rect class="hl" x="38" y="60" width="24" height="20" rx="6"/>`
+};
+function bodySvg(hl){ return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${BASE}${HL[hl]||''}</svg>`; }
+function ytLink(q){ return `https://www.youtube.com/results?search_query=${encodeURIComponent(q + ' Übung Technik Anleitung')}`; }
+
+const exercises = [
+  {name:'Brustpresse Maschine', group:'Brust', hl:'chest', unit:'A',
+   desc:'Grundübung für die gesamte Brustmuskulatur, sitzend an der Maschine.',
+   steps:['Sitzhöhe so einstellen, dass Griffe auf Brusthöhe sind.','Rücken fest an die Lehne, Füße flach am Boden.','Griffe nach vorne drücken, bis Arme fast gestreckt sind (Ellbogen nicht komplett durchdrücken).','Kontrolliert zurück in die Ausgangsposition.'],
+   mistake:'Nicht mit Schwung aus dem Rücken drücken – Bewegung kommt aus Brust/Armen.'},
+  {name:'Schulterpresse Maschine', group:'Schultern', hl:'shoulders', unit:'A',
+   desc:'Kräftigt die vordere/seitliche Schulter und stützt Brust-Übungen.',
+   steps:['Sitzhöhe so, dass Griffe auf Schulterhöhe starten.','Griffe nach oben drücken bis Arme fast gestreckt.','Langsam kontrolliert absenken.'],
+   mistake:'Kein Hohlkreuz machen – Rücken bleibt an der Lehne.'},
+  {name:'Latzug breiter Griff', group:'Rücken', hl:'upperback', unit:'A',
+   desc:'Zieht die Stange von oben zur Brust, trainiert v.a. den seitlichen Rücken (Lat).',
+   steps:['Breiten Griff wählen, Oberschenkel unter die Polster.','Stange zur oberen Brust ziehen, Brust raus, leicht zurücklehnen.','Schulterblätter dabei bewusst nach unten/zusammenziehen.','Langsam wieder nach oben führen, Arme fast strecken.'],
+   mistake:'Nicht hinter den Nacken ziehen – das belastet die Schulter unnötig.'},
+  {name:'Butterfly / Pec Deck', group:'Brust', hl:'chest', unit:'A',
+   desc:'Isolationsübung für die Brust, Arme bewegen sich wie beim "Umarmen".',
+   steps:['Rücken an die Lehne, Polster/Griffe auf Brusthöhe.','Arme in einer großen Kreisbewegung vor der Brust zusammenführen.','Kurz zusammendrücken, dann langsam wieder öffnen.'],
+   mistake:'Nicht zu weit nach hinten öffnen, wenn die Schulter zieht – Bewegungsradius reduzieren.'},
+  {name:'Trizepsdrücken Kabelzug', group:'Arme (Trizeps)', hl:'triceps', unit:'A',
+   desc:'Isolationsübung für den Trizeps (Oberarmrückseite) am hohen Kabelzug.',
+   steps:['Griff/Seil am hohen Kabelzug greifen, Ellbogen eng am Körper.','Griff nach unten drücken bis Arme gestreckt sind.','Langsam wieder hochführen, Ellbogen bleiben fixiert.'],
+   mistake:'Ellbogen nicht vom Körper wegbewegen – sonst übernimmt die Schulter.'},
+  {name:'Rudergerät sitzend (Kabelzug)', group:'Rücken', hl:'upperback', unit:'B',
+   desc:'Zieht den Griff horizontal zum Bauch, kräftigt den gesamten mittleren Rücken.',
+   steps:['Aufrecht sitzen, leichte Beugung in den Knien, Griff mit beiden Händen fassen.','Griff zum unteren Bauch/Bauchnabel ziehen, Ellbogen nah am Körper.','Schulterblätter zusammenziehen, kurz halten.','Kontrolliert zurückführen, Arme fast strecken.'],
+   mistake:'Nicht mit dem Oberkörper nach hinten schaukeln – Rücken bleibt stabil.'},
+  {name:'Schrägbankpresse Maschine', group:'Brust (oberer Teil)', hl:'chest', unit:'B',
+   desc:'Wie Brustpresse, aber mit Neigung nach oben – betont den oberen Brustmuskel.',
+   steps:['Falls Schräg-Variante nicht vorhanden: normale Brustpresse mit Griffen etwas höher ansetzen.','Rücken fest an Lehne, Griffe schräg nach oben drücken.','Kontrolliert zurückführen.'],
+   mistake:'Zu starke Neigung nimmt Belastung von der Brust auf die Schulter.'},
+  {name:'Reverse Butterfly (Rear Delt)', group:'Rücken/hintere Schulter', hl:'reardelt', unit:'B',
+   desc:'Pec Deck rückwärts benutzt – kräftigt hintere Schulter und oberen Rücken, wichtig für Haltung.',
+   steps:['Brust an das Polster lehnen (Blick zur Maschine).','Griffe seitlich mit leicht gebeugten Armen nach hinten ziehen.','Schulterblätter zusammenziehen, kurz halten, langsam zurück.'],
+   mistake:'Nicht mit viel Gewicht arbeiten – diese Muskeln sind klein, Technik zählt mehr als Gewicht.'},
+  {name:'Dip-Maschine (assistiert)', group:'Brust/Trizeps', hl:'triceps', unit:'B',
+   desc:'Assistierte Dip-Maschine gleicht einen Teil des Körpergewichts aus – gute Anfänger-Variante für Dips.',
+   steps:['Gegengewicht so einstellen, dass 8–12 saubere Wiederholungen möglich sind.','Knie auf die Plattform, Griffe fassen, Oberkörper leicht vorgebeugt für mehr Brustbeteiligung.','Nach unten absenken bis Oberarm ca. parallel zum Boden, dann hochdrücken.'],
+   mistake:'Nicht zu tief absenken, wenn die Schulter vorne zieht.'},
+  {name:'Bizeps Curl Maschine/Kabelzug', group:'Arme (Bizeps)', hl:'biceps', unit:'B',
+   desc:'Isolationsübung für den Bizeps (Oberarm-Vorderseite).',
+   steps:['Ellbogen auf dem Polster/am Körper fixieren.','Griff nach oben zur Schulter curlen.','Oben kurz anspannen, dann langsam strecken.'],
+   mistake:'Nicht mit Schwung aus der Schulter arbeiten – Ellbogen bleibt fix.'},
+  {name:'Bauchmaschine / Plank', group:'Bauch (optional)', hl:'core', unit:'A/B',
+   desc:'Kurzer Rumpf-Abschluss am Ende jeder Einheit – optional, aber gut für Haltung und Stabilität.',
+   steps:['Maschine: Oberkörper langsam nach vorne/unten einrollen, Bauch anspannen.','Oder Unterarmstütz (Plank): Körper gerade halten, Bauch/Po anspannen, 20–45 Sek. halten.'],
+   mistake:'Beim Plank kein Hohlkreuz oder Rundrücken – Körper bildet eine gerade Linie.'}
+];
+function exercisesFor(unit){ return exercises.filter(e => e.unit===unit || e.unit==='A/B'); }
+
+const PROGRESSION = [
+  {sets:3, reps:'12–15', rpe:'6–7', label:'Technik lernen'},
+  {sets:3, reps:'10–12', rpe:'7–8', label:'Gewicht steigern'},
+  {sets:4, reps:'8–10',  rpe:'8',   label:'Schwerer, mehr Volumen'},
+  {sets:2, reps:'12–15', rpe:'5',   label:'Deload – bewusst leicht'}
+];
+
+document.getElementById('exerciseCards').innerHTML = exercises.map(ex => `
+  <div class="card">
+    <div class="exCard">
+      ${bodySvg(ex.hl)}
+      <div style="flex:1;min-width:0;">
+        <div class="rowflex">
+          <h2 style="margin:0;">${ex.name}</h2>
+          <span class="badge ${ex.unit==='A'?'accent':(ex.unit==='B'?'accent2':'')}">${ex.unit}</span>
+        </div>
+        <span class="badge">${ex.group}</span>
+        <p style="margin-top:8px;">${ex.desc}</p>
+      </div>
+    </div>
+    <h3>Ausführung</h3>
+    <ul class="steps">${ex.steps.map(s=>`<li>${s}</li>`).join('')}</ul>
+    <h3>Häufiger Fehler</h3>
+    <p>${ex.mistake}</p>
+    <a class="ytbtn" href="${ytLink(ex.name)}" target="_blank" rel="noopener">▶ Video-Anleitungen auf YouTube suchen</a>
+  </div>
+`).join('');
+
+/* ---------- Weekday meal variety (Mittag/Abend je Wochentag) ---------- */
+const WEEKDAY_MEALS = [
+  {lunch:'Tofu-Reis-Bowl mit Gemüse', dinner:'Bohnen-Käse-Auflauf + Ofengemüse'},
+  {lunch:'Linsen-Nudeln mit Gemüse', dinner:'Rührei (4 Eier) + Vollkornbrot + Salat'},
+  {lunch:'Kichererbsen-Reis-Bowl (Falafel)', dinner:'Tofu-Pfanne + Süßkartoffel'},
+  {lunch:'Halloumi-Nudelsalat', dinner:'Gemüse-Curry mit Tofu + Couscous'},
+  {lunch:'Veggie-Geschnetzeltes (Soja) + Reis', dinner:'Käsespätzle + Ofengemüse'},
+  {lunch:'Frei wählbar (vegetarisch, Protein-Fokus)', dinner:'Frei wählbar (vegetarisch, Protein-Fokus)'},
+  {lunch:'Meal-Prep für die Woche', dinner:'Leicht, z. B. Gemüsesuppe + Ei'}
+];
+
+/* ---------- Scheduling engine ---------- */
+function totalSessionsBefore(key){
+  // Anzahl abgeschlossener Einheiten an allen Tagen VOR dem gegebenen Tag (chronologisch)
+  return Object.keys(days)
+    .filter(k => k < key && days[k].strengthDone)
+    .length;
+}
+function sessionsInTrailingWeek(key){
+  const d = new Date(key+'T00:00:00');
+  let count = 0;
+  for(let i=0;i<7;i++){
+    const k = keyOf(addDays(d,-i));
+    if(days[k] && days[k].strengthDone) count++;
+  }
+  return count;
+}
+function daysSinceLastSession(key){
+  const d = new Date(key+'T00:00:00');
+  for(let i=1;i<=30;i++){
+    const k = keyOf(addDays(d,-i));
+    if(days[k] && days[k].strengthDone) return i;
+  }
+  return Infinity;
+}
+function nextUnitFor(key){
+  return totalSessionsBefore(key) % 2 === 0 ? 'A' : 'B';
+}
+function cycleWeekFor(key){
+  return (Math.floor(totalSessionsBefore(key)/3) % 4);
+}
+
+function computeMacros(km, elev, strengthToday){
+  const bmr = 10*profile.weight + 6.25*profile.height - 5*profile.age + 5;
+  const neat = bmr*1.2;
+  const bikeKcal = (km||0)*30 + (elev||0)*profile.weight*0.01;
+  const strengthKcal = strengthToday ? 300 : 0;
+  const maint = neat + bikeKcal + strengthKcal;
+  const target = Math.max(maint - profile.deficit, bmr*1.1);
+  const proteinG = profile.weight*2;
+  const fatG = profile.weight*0.9;
+  const carbKcal = Math.max(target - proteinG*4 - fatG*9, 0);
+  const carbG = carbKcal/4;
+  return { target, proteinG, fatG, carbG };
+}
+const BASELINE_CARBS = computeMacros(0,0,false).carbG; // Referenz ohne Rad/Training
+
+/* ---------- Render: day strip ---------- */
+function renderDayStrip(){
+  const monday = mondayOfWeek(TODAY);
+  const strip = document.getElementById('daystrip');
+  strip.innerHTML = '';
+  for(let i=0;i<7;i++){
+    const d = addDays(monday, i);
+    const k = keyOf(d);
+    const isToday = k===TODAY_KEY;
+    const isSel = k===selectedKey;
+    const done = days[k] && (days[k].strengthDone || days[k].rest);
+    const chip = document.createElement('div');
+    chip.className = 'daychip' + (isToday?' today':'') + (isSel?' selected':'') + (done?' done':'');
+    chip.innerHTML = `${WD_LABELS[i]}<span class="dnum">${d.getDate()}</span>`;
+    chip.addEventListener('click', ()=>{ selectedKey = k; renderToday(); });
+    strip.appendChild(chip);
+  }
+}
+
+/* ---------- Render: today/selected day ---------- */
+function renderToday(){
+  renderDayStrip();
+  const key = selectedKey;
+  const day = getDay(key);
+  const isToday = key===TODAY_KEY;
+  const isFuture = key>TODAY_KEY;
+  const d = new Date(key+'T00:00:00');
+  const wdIdx = (d.getDay()+6)%7;
+
+  document.getElementById('dayHeaderTitle').textContent =
+    (isToday ? 'Heute · ' : (isFuture ? 'Vorschau · ' : 'Rückblick · ')) +
+    WD_LABELS[wdIdx] + ', ' + pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.';
+
+  const restToggle = document.getElementById('restToggle');
+  restToggle.checked = day.rest;
+  restToggle.onchange = ()=>{ day.rest = restToggle.checked; saveDays(); renderToday(); };
+
+  document.getElementById('in_km').value = day.km || '';
+  document.getElementById('in_elev').value = day.elev || '';
+  document.getElementById('in_km').oninput = e => { day.km = parseFloat(e.target.value)||0; saveDays(); renderToday(); };
+  document.getElementById('in_elev').oninput = e => { day.elev = parseFloat(e.target.value)||0; saveDays(); renderToday(); };
+
+  const bigRide = (day.km||0) >= 70 || (day.elev||0) >= 800;
+  const strengthContent = document.getElementById('strengthContent');
+
+  if(isFuture){
+    strengthContent.innerHTML = `<p class="sub">Wird erst an diesem Tag final berechnet – abhängig davon, wie dein Training bis dahin läuft.</p>`;
+  } else if(day.rest){
+    strengthContent.innerHTML = `<p class="sub">Als Ruhetag/Reisetag markiert – kein Training vorgeschlagen. Die fällige Einheit rutscht automatisch auf den nächsten passenden Tag.</p>`;
+  } else if(day.strengthDone){
+    const unit = day.unit;
+    const wk = cycleWeekFor(key); // Woche zum Zeitpunkt VOR dieser Einheit – für Anzeige ok
+    strengthContent.innerHTML = `
+      <div class="okbox">✅ Erledigt: <b>Einheit ${unit}</b> (${PROGRESSION[wk].label}, ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps})</div>
+      <div class="checkline"><input type="checkbox" checked id="undoStrength"><div class="clabel">Als nicht erledigt markieren</div></div>`;
+    document.getElementById('undoStrength').onchange = ()=>{ day.strengthDone=false; day.unit=null; saveDays(); renderToday(); };
+  } else {
+    const sessionsWeek = sessionsInTrailingWeek(key);
+    const sinceLast = daysSinceLastSession(key);
+    let due = true, reason = '';
+    if(bigRide){ due=false; reason = `Große Radausfahrt heute (${day.km||0} km / ${day.elev||0} Hm) – heute Erholung, keine zusätzliche Krafteinheit.`; }
+    else if(sinceLast===0){ due=false; reason = 'Heute schon erledigt.'; }
+    else if(sinceLast===1){ due=false; reason = 'Gestern trainiert – heute Pause zur Erholung, morgen ggf. wieder fällig.'; }
+    else if(sessionsWeek>=profile.target){ due=false; reason = `Wochenziel schon erreicht (${sessionsWeek}/${profile.target}) – heute Pause.`; }
+
+    if(!due){
+      strengthContent.innerHTML = `<p class="sub">${reason}</p>`;
+    } else {
+      const unit = nextUnitFor(key);
+      const wk = cycleWeekFor(key);
+      const list = exercisesFor(unit);
+      const dur = Math.round(list.length*7/5)*5;
+      strengthContent.innerHTML = `
+        <p><b>Einheit ${unit}</b> fällig – ${PROGRESSION[wk].label} <span class="badge ${unit==='A'?'accent':'accent2'}">Woche ${wk+1}/4</span></p>
+        <p class="sub">Sätze/Wdh.: ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps} · RPE ${PROGRESSION[wk].rpe} · ca. ${dur} Min. im Studio</p>
+        <ul class="exlist">${list.map(e=>`<li>${e.name} <small>${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps}</small></li>`).join('')}</ul>
+        <div class="checkline"><input type="checkbox" id="doStrength"><div class="clabel">Erledigt<small>Einheit ${unit} abgehakt</small></div></div>`;
+      document.getElementById('doStrength').onchange = (e)=>{
+        if(e.target.checked){ day.strengthDone=true; day.unit=unit; saveDays(); renderToday(); }
+      };
+    }
+  }
+
+  // Ernährung
+  const strengthTodayForMacros = day.strengthDone || (!day.rest && !bigRide && daysSinceLastSession(key)>=2 && sessionsInTrailingWeek(key)<profile.target);
+  const macros = computeMacros(day.km, day.elev, strengthTodayForMacros);
+  document.getElementById('out_target').textContent = Math.round(macros.target);
+  document.getElementById('out_protein').textContent = Math.round(macros.proteinG)+'g';
+  document.getElementById('out_carbs').textContent = Math.round(macros.carbG)+'g';
+
+  const scale = Math.min(2, Math.max(0.5, macros.carbG / BASELINE_CARBS));
+  const riceG = Math.round(130*scale/10)*10;
+  const potatoG = Math.round(200*scale/10)*10;
+  const wm = WEEKDAY_MEALS[wdIdx];
+  const meals = [
+    {t:'Frühstück – Skyr-Porridge', d:'500 g Skyr/Magerquark + 60 g Haferflocken + 1 Banane + Zimt.'},
+    {t:'Mittag – ' + wm.lunch, d:`150 g Tofu/Linsen/Kichererbsen je nach Rezept + ${riceG} g Reis (roh gewogen) + Gemüse.`},
+    {t:'Post-Workout Shake', d:'1 Scoop ESN Whey + Wasser oder Milch.', onlyIfTraining:true},
+    {t:'Snack – Skyr + Obst', d:'250 g Skyr + Beeren/Apfel.'},
+    {t:'Abend – ' + wm.dinner, d:`150–200 g Protein nach Rezept + ${potatoG} g Kartoffeln/Süßkartoffeln + Salat.`}
+  ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone);
+
+  document.getElementById('mealList').innerHTML = meals.map((m,i)=>`
+    <div class="checkline">
+      <input type="checkbox" id="meal${i}" ${day.meals[i]?'checked':''}>
+      <div class="clabel">${m.t}<small>${m.d}</small></div>
+    </div>`).join('');
+  meals.forEach((m,i)=>{
+    document.getElementById('meal'+i).onchange = e=>{ day.meals[i]=e.target.checked; saveDays(); };
+  });
+}
+
+function resetAllData(){
+  if(confirm('Wirklich alle Profil- und Tagesdaten löschen?')){
+    days = {};
+    saveJSON('days', {});
+    saveJSON('profile', {});
+    location.reload();
+  }
+}
+
+renderToday();
+</script>
+
+</body>
+</html>
