@@ -114,6 +114,18 @@
   .daychip.selected.today{border-color:var(--accent);}
   .daychip.done .dnum::after{content:" ✓";color:var(--ok);}
   .daychip.selected.done .dnum::after{color:#fff;}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .calcell{aspect-ratio:1;border-radius:8px;background:var(--chip);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:10px;color:var(--sub);gap:1px;}
+  .calcell .cnum{font-size:11px;font-weight:600;color:var(--text);}
+  .calcell.strength{background:var(--accent);}
+  .calcell.strength .cnum{color:#fff;}
+  .calcell.rest{background:var(--line);}
+  .calcell.ride{background:rgba(31,122,92,.25);}
+  .calcell.future{opacity:.35;}
+  .calLegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--sub);}
+  .calLegend span{display:inline-flex;align-items:center;gap:4px;}
+  .calLegend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
   .toggle{display:flex;align-items:center;gap:8px;}
   .toggle input{width:20px;height:20px;}
   .num-inline{display:flex;gap:8px;}
@@ -307,12 +319,18 @@ let selectedKey = TODAY_KEY;
 
 /* ---------- Profile ---------- */
 const profile = Object.assign({ weight:80, height:175, age:35, target:4, deficit:500 }, loadJSON('profile', {}));
+function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
 function saveProfile(){
-  profile.weight = parseFloat(document.getElementById('in_weight').value)||profile.weight;
-  profile.height = parseFloat(document.getElementById('in_height').value)||profile.height;
-  profile.age = parseFloat(document.getElementById('in_age').value)||profile.age;
-  profile.target = parseFloat(document.getElementById('in_target').value)||profile.target;
-  profile.deficit = parseFloat(document.getElementById('in_deficit').value)||0;
+  const w = parseFloat(document.getElementById('in_weight').value);
+  const h = parseFloat(document.getElementById('in_height').value);
+  const a = parseFloat(document.getElementById('in_age').value);
+  const t = parseFloat(document.getElementById('in_target').value);
+  const d = parseFloat(document.getElementById('in_deficit').value);
+  if(!isNaN(w)) profile.weight = clamp(w, 30, 300);
+  if(!isNaN(h)) profile.height = clamp(h, 100, 250);
+  if(!isNaN(a)) profile.age = clamp(a, 10, 100);
+  if(!isNaN(t)) profile.target = clamp(t, 1, 14);
+  profile.deficit = isNaN(d) ? 0 : clamp(d, -1000, 2000);
   saveJSON('profile', profile);
   renderToday();
 }
@@ -738,8 +756,8 @@ function renderToday(){
 
   document.getElementById('in_km').value = day.km || '';
   document.getElementById('in_elev').value = day.elev || '';
-  document.getElementById('in_km').oninput = e => { day.km = parseFloat(e.target.value)||0; saveDays(); renderToday(); };
-  document.getElementById('in_elev').oninput = e => { day.elev = parseFloat(e.target.value)||0; saveDays(); renderToday(); };
+  document.getElementById('in_km').oninput = e => { day.km = Math.max(0, parseFloat(e.target.value)||0); saveDays(); renderToday(); };
+  document.getElementById('in_elev').oninput = e => { day.elev = Math.max(0, parseFloat(e.target.value)||0); saveDays(); renderToday(); };
 
   const bigRide = (day.km||0) >= 70 || (day.elev||0) >= 800;
   const strengthContent = document.getElementById('strengthContent');
@@ -763,14 +781,17 @@ function renderToday(){
       strengthContent.innerHTML = `<p class="sub">${reason}</p>`;
     } else {
       const unit = nextUnitFor(key);
-      const wk = cycleWeekFor(key);
+      const longLayoff = !startedToday && sinceLast >= 14;
+      const wk = longLayoff ? 0 : cycleWeekFor(key);
       const list = exercisesFor(unit);
       const requiredNames = list.filter(e=>e.unit===unit).map(e=>e.name);
       const dur = Math.round(list.length*7/5)*5;
+      const layoffNote = longLayoff ? `<p class="sub">⏸ Lange Pause erkannt (${sinceLast} Tage seit der letzten Einheit) – zur Sicherheit starten wir wieder bei Woche 1 (leichter), auch wenn du vorher schon weiter warst.</p>` : '';
       const banner = day.strengthDone
         ? `<div class="okbox">✅ Einheit ${unit} heute erledigt – tippe eine Übung an für Ausführung & Gewichtswahl.</div>`
         : `<p><b>Einheit ${unit}</b> fällig – ${PROGRESSION[wk].label} <span class="badge ${unit==='A'?'accent':'accent2'}">Woche ${wk+1}/4</span></p>
-           <p class="sub">Sätze/Wdh.: ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps} · RPE ${PROGRESSION[wk].rpe} · ca. ${dur} Min. im Studio</p>`;
+           <p class="sub">Sätze/Wdh.: ${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps} · RPE ${PROGRESSION[wk].rpe} · ca. ${dur} Min. im Studio</p>
+           ${layoffNote}`;
       strengthContent.innerHTML = `
         ${banner}
         <ul class="exlist">${list.map((e,i)=>`
@@ -847,6 +868,10 @@ function resetAllData(){
     days = {};
     saveJSON('days', {});
     saveJSON('profile', {});
+    for(let i=storage.length? storage.length-1 : -1; i>=0; i--){
+      const k = storage.key ? storage.key(i) : null;
+      if(k && k.indexOf('shoppingChecks_')===0) storage.removeItem(k);
+    }
     location.reload();
   }
 }
@@ -875,7 +900,37 @@ function renderReview(){
   const kcalSaved = Math.round(trackedDays * profile.deficit);
   const exerciseList = Object.entries(exerciseCounts).sort((a,b)=>b[1]-a[1]);
 
+  // Monatsübersicht: 28 Tage (4 volle Wochen), endend am Sonntag der aktuellen Woche
+  const gridEnd = sundayOfWeek(TODAY);
+  const gridStart = addDays(gridEnd, -27);
+  let loggedDays = 0, gapDays = 0;
+  const cells = [];
+  for(let i=0;i<28;i++){
+    const d = addDays(gridStart, i);
+    const k = keyOf(d);
+    const isFuture = d.getTime() > TODAY.getTime();
+    const dl = days[k];
+    let cls = 'calcell';
+    if(isFuture) cls += ' future';
+    else if(dl && dl.strengthDone) cls += ' strength';
+    else if(dl && dl.rest) cls += ' rest';
+    else if(dl && (dl.km||0) > 0) cls += ' ride';
+    if(!isFuture){ if(dl && (dl.strengthDone || dl.rest || (dl.km||0)>0)) loggedDays++; else gapDays++; }
+    cells.push(`<div class="${cls}" title="${pad(d.getDate())}.${pad(d.getMonth()+1)}."><span class="cnum">${d.getDate()}</span></div>`);
+  }
+
   document.getElementById('reviewContent').innerHTML = `
+    <div class="card">
+      <h2>Monatsübersicht (letzte 4 Wochen)</h2>
+      <div class="calgrid">${cells.join('')}</div>
+      <div class="calLegend">
+        <span><i style="background:var(--accent)"></i>Krafttraining</span>
+        <span><i style="background:rgba(31,122,92,.25)"></i>nur Rad</span>
+        <span><i style="background:var(--line)"></i>Ruhe/Cheat</span>
+        <span><i style="background:var(--chip);border:1px solid var(--sub)"></i>nicht erfasst</span>
+      </div>
+      <p class="sub" style="margin-top:8px;">${gapDays>0 ? `${gapDays} von ${loggedDays+gapDays} Tagen ohne Eintrag – kein Problem, die App holt fällige Einheiten automatisch nach, sobald du wieder einträgst.` : 'Lückenlos erfasst – stark!'}</p>
+    </div>
     <div class="card">
       <h2>Diese Woche (Mo–heute)</h2>
       <div class="grid3">
@@ -897,6 +952,16 @@ function renderReview(){
     ${cheatDays>0 ? `<div class="card"><h2>Cheat-/Ruhetage</h2><p class="sub">${cheatDays} Tag(e) diese Woche als Ruhetag/Cheatday markiert. An diesen Tagen wurde keine Nahrungsaufnahme getrackt – sie zählen nicht ins Kaloriendefizit oben.</p></div>` : ''}
   `;
 }
+
+/* ---------- Datum neu prüfen, falls die App über Nacht im Hintergrund offen blieb ---------- */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && keyOf(todayDate()) !== TODAY_KEY){
+    location.reload();
+  }
+});
+window.addEventListener('focus', ()=>{
+  if(keyOf(todayDate()) !== TODAY_KEY) location.reload();
+});
 
 renderToday();
 </script>
