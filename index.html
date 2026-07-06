@@ -114,6 +114,9 @@
   .exrow:active{background:var(--chip);}
   .exrow .exname{flex:1;font-size:14px;font-weight:600;cursor:pointer;}
   .exrow .exname small{display:block;color:var(--sub);font-size:11.5px;font-weight:500;margin-top:1px;}
+  .wtinput{flex:0 0 auto;width:46px;padding:6px 4px;border-radius:8px;border:1.5px solid var(--line);
+    background:var(--bg);color:var(--text);font-size:13px;text-align:center;font-variant-numeric:tabular-nums;}
+  .wtinput:focus{outline:none;border-color:var(--accent);}
   .exrow .chev{color:var(--sub);font-size:17px;flex:0 0 auto;transition:transform .15s ease;}
   .exrow:active .chev{transform:translateX(2px);color:var(--accent);}
   .exicon{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:var(--accent-soft);
@@ -454,10 +457,31 @@ function saveProfile(){
 /* ---------- Day log storage ---------- */
 let days = loadJSON('days', {});
 function getDay(key){
-  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{} };
+  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{}, exWeights:{} };
   if(!days[key].exDone) days[key].exDone = {};
+  if(!days[key].exWeights) days[key].exWeights = {};
   if(!days[key].meals || Array.isArray(days[key].meals)) days[key].meals = {};
   return days[key];
+}
+function lastWeightFor(name, beforeKey){
+  const keys = Object.keys(days).filter(k => k < beforeKey && days[k].exWeights && days[k].exWeights[name] != null).sort();
+  if(!keys.length) return null;
+  return days[keys[keys.length-1]].exWeights[name];
+}
+function computeWeightProgress(){
+  const perExercise = {};
+  Object.keys(days).filter(k=>k<=TODAY_KEY).sort().forEach(k=>{
+    const w = days[k].exWeights;
+    if(!w) return;
+    Object.entries(w).forEach(([name,val])=>{
+      if(val==null || val==='') return;
+      if(!perExercise[name]) perExercise[name] = [];
+      perExercise[name].push(parseFloat(val));
+    });
+  });
+  return Object.entries(perExercise).map(([name,arr])=>({
+    name, start:arr[0], latest:arr[arr.length-1], delta:arr[arr.length-1]-arr[0], entries:arr.length
+  }));
 }
 function saveDays(){ saveJSON('days', days); }
 
@@ -964,15 +988,23 @@ function renderToday(){
            ${layoffNote}`;
       strengthContent.innerHTML = `
         ${banner}
-        <ul class="exlist">${list.map((e,i)=>`
+        <ul class="exlist">${list.map((e,i)=>{
+          const lastW = lastWeightFor(e.name, key);
+          return `
           <li class="exrow">
             <input type="checkbox" id="exdone_${i}" ${day.exDone[e.name]?'checked':''}>
             <span class="exicon">${iconFor(e.hl)}</span>
-            <span class="exname" data-i="${i}">${e.name}${e.unit==='A/B'?' <small>(optional)</small>':`<small>${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps}</small>`}</span>
+            <span class="exname" data-i="${i}">${e.name}${e.unit==='A/B'?' <small>(optional)</small>':`<small>${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps}${lastW!=null?' · zuletzt '+lastW+' kg':''}</small>`}</span>
+            <input type="number" class="wtinput" id="wt_${i}" placeholder="${lastW ?? 'kg'}" value="${day.exWeights[e.name] ?? ''}" step="0.5" inputmode="decimal">
             <span class="chev">›</span>
-          </li>`).join('')}</ul>
-        <p class="sub" style="margin-top:8px;">Tippe auf eine Übung für Ausführung, Video und Gewichtswahl. Häkchen setzen, sobald du sie im Studio gemacht hast.</p>`;
+          </li>`;}).join('')}</ul>
+        <p class="sub" style="margin-top:8px;">Tippe auf eine Übung für Ausführung, Video und Gewichtswahl. Gewicht (kg) eintragen und Häkchen setzen, sobald du sie im Studio gemacht hast.</p>`;
       list.forEach((e,i)=>{
+        document.getElementById('wt_'+i).oninput = (ev)=>{
+          const v = ev.target.value;
+          day.exWeights[e.name] = v === '' ? null : parseFloat(v);
+          saveDays();
+        };
         document.getElementById('exdone_'+i).onchange = (ev)=>{
           const wasDone = day.strengthDone;
           day.exDone[e.name] = ev.target.checked;
@@ -1084,6 +1116,7 @@ function renderReview(){
   }
   const kcalSaved = Math.round(trackedDays * profile.deficit);
   const exerciseList = Object.entries(exerciseCounts).sort((a,b)=>b[1]-a[1]);
+  const weightProgress = computeWeightProgress().sort((a,b)=>a.name.localeCompare(b.name,'de'));
 
   // Monatsübersicht: 28 Tage (4 volle Wochen), endend am Sonntag der aktuellen Woche
   const gridEnd = sundayOfWeek(TODAY);
@@ -1133,6 +1166,12 @@ function renderReview(){
     <div class="card">
       <h2>Kraftübungen diese Woche</h2>
       ${exerciseList.length ? `<ul class="exlist">${exerciseList.map(([n,c])=>`<li>${n}<small>${c}×</small></li>`).join('')}</ul>` : '<p class="sub">Diese Woche noch keine Krafteinheit abgeschlossen.</p>'}
+    </div>
+    <div class="card">
+      <h2>Gewichtsentwicklung seit Beginn</h2>
+      ${weightProgress.length ? `<ul class="exlist">${weightProgress.map(w=>`
+        <li>${w.name}<small>${w.start} → ${w.latest} kg${w.entries>1?` (${w.delta>0?'+':''}${Math.round(w.delta*10)/10} kg)`:' · erster Eintrag'}</small></li>`).join('')}</ul>`
+        : '<p class="sub">Noch keine Gewichte eingetragen – trag beim Abhaken einer Übung auf "Heute" das genutzte Gewicht ein, hier siehst du dann die Entwicklung.</p>'}
     </div>
     ${cheatDays>0 ? `<div class="card"><h2>Cheat-/Ruhetage</h2><p class="sub">${cheatDays} Tag(e) diese Woche als Ruhetag/Cheatday markiert. An diesen Tagen wurde keine Nahrungsaufnahme getrackt – sie zählen nicht ins Kaloriendefizit oben.</p></div>` : ''}
   `;
