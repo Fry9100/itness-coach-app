@@ -585,24 +585,24 @@ document.getElementById('exerciseCards').innerHTML = exercises.map(ex => `
 /* ---------- Rezept-Datenbank (Mittag/Abend je Wochentag, plus fixe Mahlzeiten) ---------- */
 const BREAKFAST = { name:'Skyr-Porridge', ingredients:null,
   extra:[
-    {item:'Skyr oder Magerquark', qty:500, unit:'g'},
+    {item:'Skyr', qty:500, unit:'g'},
     {item:'Haferflocken', qty:60, unit:'g'},
     {item:'Banane', qty:1, unit:'Stk'},
     {item:'Zimt', qty:1, unit:'TL'}
   ], carb:null,
-  steps:['Haferflocken in den Skyr/Magerquark einrühren.','Banane in Scheiben schneiden und untermischen.','Mit Zimt bestreuen. Fertig – kein Kochen nötig.'] };
+  steps:['Haferflocken in den Skyr einrühren.','Banane in Scheiben schneiden und untermischen.','Mit Zimt bestreuen. Fertig – kein Kochen nötig.'] };
 
-const SNACK = { name:'Skyr + Obst', carb:null,
+const SNACK = { name:'Skyr + Beeren', carb:null,
   extra:[
     {item:'Skyr', qty:250, unit:'g'},
-    {item:'Beeren oder Apfel', qty:100, unit:'g'}
+    {item:'Beeren (z. B. Blaubeeren)', qty:100, unit:'g'}
   ],
-  steps:['Obst waschen (und ggf. schneiden).','Mit Skyr mischen. Fertig in 2 Minuten.'] };
+  steps:['Beeren ggf. auftauen/waschen.','Mit Skyr mischen. Fertig in 2 Minuten.'] };
 
 const SHAKE = { name:'Post-Workout Shake', carb:null,
   extra:[
     {item:'ESN Whey Protein', qty:30, unit:'g (1 Scoop)'},
-    {item:'Wasser oder Milch', qty:300, unit:'ml'}
+    {item:'Wasser', qty:300, unit:'ml'}
   ],
   steps:['Beides in den Shaker geben.','20 Sekunden schütteln.','Direkt nach dem Training trinken.'] };
 
@@ -613,9 +613,9 @@ const LUNCHES = [
   { name:'Linsen-Nudeln mit Gemüse', carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Passierte Tomaten', qty:100, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Nudeln nach Packungsanweisung kochen.','Gemüse klein schneiden, in Öl kurz anbraten.','Passierte Tomaten dazugeben, 5–10 Min. köcheln.','Mit den Nudeln vermengen, salzen/pfeffern.'] },
-  { name:'Kichererbsen-Reis-Bowl (Falafel)', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
-    extra:[{item:'Kichererbsen (Dose, abgetropft) oder TK-Falafel', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
-    steps:['Reis kochen.','Falafel laut Packung braten/backen, oder Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) in der Pfanne anbraten.','Mit Reis und Salat servieren, Dressing dazu.'] },
+  { name:'Kichererbsen-Reis-Bowl', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+    extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
+    steps:['Reis kochen.','Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) in der Pfanne kurz anbraten.','Mit Reis und Salat servieren, Dressing dazu.'] },
   { name:'Halloumi-Nudelsalat', carb:{item:'Nudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Halloumi', qty:125, unit:'g'},{item:'Cherrytomaten/Gurke', qty:150, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
     steps:['Nudeln kochen, abkühlen lassen.','Halloumi in Scheiben schneiden, goldbraun braten.','Alles mit klein geschnittenem Gemüse und Öl vermengen.'] },
@@ -860,8 +860,8 @@ function renderReview(){
     const k = keyOf(d);
     const dl = days[k];
     if(!dl){ continue; }
-    if(dl.rest){ cheatDays++; continue; }
-    trackedDays++;
+    if(dl.rest) cheatDays++;
+    else trackedDays++;
     totalKm += dl.km||0;
     totalElev += dl.elev||0;
     if((dl.km||0) > 0) rideDays++;
