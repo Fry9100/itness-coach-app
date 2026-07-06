@@ -202,7 +202,7 @@
         <div><label>Ziel-Einheiten/Woche</label><input type="number" id="in_target" value="4"></div>
       </div>
       <label>Kaloriendefizit pro Tag (kcal)</label>
-      <input type="number" id="in_deficit" value="300">
+      <input type="number" id="in_deficit" value="500">
       <p class="sub" style="margin-top:8px;">Angenommen: keine Ernährungseinschränkungen. Sag Bescheid, falls vegetarisch/vegan/laktosefrei zutrifft.</p>
     </div>
 
@@ -222,7 +222,7 @@
       <ul class="steps">
         <li><b>Protein zuerst:</b> ca. 2,2&nbsp;g/kg Körpergewicht/Tag (etwas höher als der übliche Richtwert, wegen deines hohen Gesamt-Trainingsumfangs aus Rad + Kraft), auf 4–5 Mahlzeiten verteilt.</li>
         <li><b>Kohlenhydrate nach Radlast:</b> je mehr km/Höhenmeter du heute einträgst, desto mehr Reis/Kartoffeln empfiehlt dir die App automatisch.</li>
-        <li><b>Moderates Kaloriendefizit</b> statt Crash-Diät, damit eher Fett statt Muskeln verloren geht.</li>
+        <li><b>500&nbsp;kcal Defizit/Tag</b> als Startwert – bei deinem hohen Trainingsumfang (Rad + Kraft) ist das trotz des höheren Körperfettanteils nur ein moderater, relativer Cut (~15% unter Erhaltung), ergibt aber real ca. 0,5&nbsp;kg Fettverlust/Woche. Passe den Wert im "Mehr"-Tab an, falls die Waage über längere Zeit schneller/langsamer als das fällt oder Leistung/Erholung leiden.</li>
         <li>Gemüse zu jeder Hauptmahlzeit, mind. 3&nbsp;Liter trinken, Alkohol nur gelegentlich.</li>
         <li><b>Mittag ist Meal Prep:</b> da du in der Arbeit nicht kochen kannst, werden alle Mittagsrezepte am Vorabend (oder auf Vorrat am Wochenende) zubereitet und kalt bzw. in der Mikrowelle mitgenommen.</li>
       </ul>
@@ -306,7 +306,7 @@ const TODAY_KEY = keyOf(TODAY);
 let selectedKey = TODAY_KEY;
 
 /* ---------- Profile ---------- */
-const profile = Object.assign({ weight:80, height:175, age:35, target:4, deficit:300 }, loadJSON('profile', {}));
+const profile = Object.assign({ weight:80, height:175, age:35, target:4, deficit:500 }, loadJSON('profile', {}));
 function saveProfile(){
   profile.weight = parseFloat(document.getElementById('in_weight').value)||profile.weight;
   profile.height = parseFloat(document.getElementById('in_height').value)||profile.height;
