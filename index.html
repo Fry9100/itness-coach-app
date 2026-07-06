@@ -164,8 +164,14 @@
         <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
       </div>
       <div id="mealList" style="margin-top:6px;"></div>
+      <button class="pill secondary" style="margin-top:12px;" onclick="showShoppingList()">🛒 Einkaufsliste bis Sonntag</button>
     </div>
 
+  </section>
+
+  <!-- ===================== RÜCKBLICK (Wochenstatistik) ===================== -->
+  <section class="view" id="view-review">
+    <div id="reviewContent"></div>
   </section>
 
   <!-- ===================== ÜBUNGEN (Nachschlagewerk) ===================== -->
@@ -177,10 +183,10 @@
     <div id="exerciseCards"></div>
   </section>
 
-  <!-- ===================== ÜBUNGS-DETAIL (aus Heute anspringbar) ===================== -->
-  <section class="view" id="view-exercise-detail">
-    <button class="backbtn" onclick="closeExerciseDetail()">‹ Zurück zu Heute</button>
-    <div id="exerciseDetailContent"></div>
+  <!-- ===================== DETAIL (Übung/Rezept/Einkaufsliste, aus Heute anspringbar) ===================== -->
+  <section class="view" id="view-detail">
+    <button class="backbtn" onclick="closeDetail()">‹ Zurück zu Heute</button>
+    <div id="detailContent"></div>
   </section>
 
   <!-- ===================== MEHR (Profil, Ernährungsprinzipien, Supplements) ===================== -->
@@ -242,6 +248,9 @@
   <button class="tab active" data-view="today" data-title="Heute" data-sub="Dein persönlicher Trainings- & Ernährungscoach">
     <span class="ic">🏠</span>Heute
   </button>
+  <button class="tab" data-view="review" data-title="Rückblick" data-sub="Deine Woche im Überblick">
+    <span class="ic">📊</span>Rückblick
+  </button>
   <button class="tab" data-view="exercises" data-title="Übungen" data-sub="Ausführung, Bilder & Videos">
     <span class="ic">📖</span>Übungen
   </button>
@@ -276,6 +285,7 @@ tabs.forEach(btn=>{
     document.getElementById('view-'+btn.dataset.view).classList.add('active');
     document.getElementById('pageTitle').textContent = btn.dataset.title;
     document.getElementById('pageSub').textContent = btn.dataset.sub;
+    if(btn.dataset.view === 'review') renderReview();
     window.scrollTo(0,0);
   });
 });
@@ -287,6 +297,7 @@ function todayDate(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
 function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
 const WD_LABELS = ['Mo','Di','Mi','Do','Fr','Sa','So'];
 function mondayOfWeek(d){ const offset = (d.getDay()+6)%7; return addDays(d, -offset); }
+function sundayOfWeek(d){ return addDays(mondayOfWeek(d), 6); }
 
 const TODAY = todayDate();
 const TODAY_KEY = keyOf(TODAY);
@@ -312,8 +323,9 @@ function saveProfile(){
 /* ---------- Day log storage ---------- */
 let days = loadJSON('days', {});
 function getDay(key){
-  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:[false,false,false,false,false], exDone:{} };
+  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{} };
   if(!days[key].exDone) days[key].exDone = {};
+  if(!days[key].meals || Array.isArray(days[key].meals)) days[key].meals = {};
   return days[key];
 }
 function saveDays(){ saveJSON('days', days); }
@@ -396,11 +408,22 @@ const exercises = [
 ];
 function exercisesFor(unit){ return exercises.filter(e => e.unit===unit || e.unit==='A/B'); }
 
-/* ---------- Übungs-Detailseite (aus Heute anspringbar) ---------- */
+/* ---------- Generische Detailseite (Übung / Rezept / Einkaufsliste), aus Heute anspringbar ---------- */
+function openDetail(html){
+  document.getElementById('detailContent').innerHTML = html;
+  document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-detail').classList.add('active');
+  window.scrollTo(0,0);
+}
+function closeDetail(){
+  document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-today').classList.add('active');
+  window.scrollTo(0,0);
+}
 function showExerciseDetail(name){
   const ex = exercises.find(e=>e.name===name);
   if(!ex) return;
-  document.getElementById('exerciseDetailContent').innerHTML = `
+  openDetail(`
     <div class="card">
       <div class="exCard">
         ${bodySvg(ex.hl)}
@@ -418,15 +441,115 @@ function showExerciseDetail(name){
       <p>${ex.weightTip}</p>
       <p class="sub">Faustregel für jede Übung: Die letzten 2–3 Wiederholungen der letzten Serie sollten anstrengend, aber mit sauberer Technik noch machbar sein. Zu leicht → nächstes Mal eine Stufe höher. Technik leidet oder Zielwiederholungen nicht erreicht → eine Stufe runter.</p>
       <a class="ytbtn" href="${ytLink(ex.name)}" target="_blank" rel="noopener">▶ Video-Anleitungen auf YouTube suchen</a>
-    </div>`;
-  document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-exercise-detail').classList.add('active');
-  window.scrollTo(0,0);
+    </div>`);
 }
-function closeExerciseDetail(){
-  document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-today').classList.add('active');
-  window.scrollTo(0,0);
+
+/* ---------- Rezept-Formatierung & Detailseite ---------- */
+function fmtIngredient(item, qty, unit){
+  qty = Math.round(qty*10)/10;
+  if(unit==='Stk') return `${qty} ${item}`;
+  return `${qty} ${unit} ${item}`;
+}
+function showRecipeDetail(recipe, scaledCarbQty){
+  if(recipe.freeform){
+    openDetail(`<div class="card"><h2>${recipe.name}</h2><p>${recipe.note}</p></div>`);
+    return;
+  }
+  const lines = [];
+  if(recipe.carb) lines.push(fmtIngredient(recipe.carb.item, scaledCarbQty ?? recipe.carb.base, recipe.carb.unit));
+  recipe.extra.forEach(e=>lines.push(fmtIngredient(e.item, e.qty, e.unit)));
+  openDetail(`
+    <div class="card">
+      <h2>${recipe.name}</h2>
+      <h3>Zutaten (roh/ungekocht gewogen)</h3>
+      <ul class="steps">${lines.map(l=>`<li>${l}</li>`).join('')}</ul>
+      <h3>Zubereitung</h3>
+      <ul class="steps">${recipe.steps.map(s=>`<li>${s}</li>`).join('')}</ul>
+    </div>`);
+}
+
+/* ---------- Wocheneinkauf: aggregierte Einkaufsliste ab gewähltem Tag bis Sonntag ---------- */
+function showShoppingList(){
+  const start = new Date(selectedKey+'T00:00:00');
+  const end = sundayOfWeek(start);
+  const totals = {};
+  const notes = [];
+  function add(item, qty, unit){
+    const k = item+'|'+unit;
+    if(!totals[k]) totals[k] = {item, qty:0, unit};
+    totals[k].qty += qty;
+  }
+  function addRecipe(recipe, scaledQty){
+    if(!recipe || recipe.freeform) return;
+    if(recipe.carb) add(recipe.carb.item, scaledQty ?? recipe.carb.base, recipe.carb.unit);
+    recipe.extra.forEach(e=>add(e.item, e.qty, e.unit));
+  }
+
+  let cur = new Date(start);
+  let first = true;
+  const monday = mondayOfWeek(TODAY);
+  let sessionsDoneThisWeek = 0;
+  for(let i=0;i<7;i++){
+    const k = keyOf(addDays(monday,i));
+    if(days[k] && days[k].strengthDone) sessionsDoneThisWeek++;
+  }
+  let remainingNonRestDays = 0;
+
+  while(cur.getTime() <= end.getTime()){
+    const k = keyOf(cur);
+    const wIdx = (cur.getDay()+6)%7;
+    const dayLog = days[k];
+    const isRest = dayLog && dayLog.rest;
+    if(isRest){
+      notes.push(`${WD_LABELS[wIdx]} (${pad(cur.getDate())}.${pad(cur.getMonth()+1)}.): als Ruhetag/Cheatday markiert – nicht mit eingerechnet.`);
+      cur = addDays(cur,1); first=false; continue;
+    }
+    remainingNonRestDays++;
+    const doneMeals = (first && dayLog) ? dayLog.meals || {} : {};
+    const macros = computeMacros(dayLog?dayLog.km||0:0, dayLog?dayLog.elev||0:0, !!(dayLog&&dayLog.strengthDone));
+    const dayScale = Math.min(2, Math.max(0.5, macros.carbG / BASELINE_CARBS));
+    const sq = base => Math.round(base*dayScale/10)*10;
+
+    const lunch = LUNCHES[wIdx];
+    const dinner = DINNERS[wIdx];
+    if(!doneMeals.breakfast) addRecipe(BREAKFAST);
+    if(!doneMeals.lunch) addRecipe(lunch, lunch.carb? sq(lunch.carb.base): null);
+    if(!doneMeals.snack) addRecipe(SNACK);
+    if(!doneMeals.dinner) addRecipe(dinner, dinner.carb? sq(dinner.carb.base): null);
+    if(lunch.freeform) notes.push(`${WD_LABELS[wIdx]}: Mittag frei wählbar – nicht in der Liste enthalten.`);
+    if(dinner.freeform) notes.push(`${WD_LABELS[wIdx]}: Abend frei wählbar – nicht in der Liste enthalten.`);
+
+    cur = addDays(cur, 1);
+    first = false;
+  }
+
+  const sessionsRemaining = Math.max(Math.min(profile.target - sessionsDoneThisWeek, remainingNonRestDays), 0);
+  const items = Object.values(totals).sort((a,b)=>a.item.localeCompare(b.item,'de'));
+  const weekKey = keyOf(end);
+  const checks = loadJSON('shoppingChecks_'+weekKey, {});
+
+  openDetail(`
+    <div class="card">
+      <h2>🛒 Einkaufsliste bis Sonntag</h2>
+      <p class="sub">Ab ${WD_LABELS[(start.getDay()+6)%7]} (${pad(start.getDate())}.${pad(start.getMonth()+1)}., nur noch offene Mahlzeiten) bis So ${pad(end.getDate())}.${pad(end.getMonth()+1)}.</p>
+      ${notes.length? `<p class="sub">${notes.join('<br>')}</p>` : ''}
+      <div id="shopChecklist">
+        ${items.map((it,i)=>`
+          <div class="checkline">
+            <input type="checkbox" id="shop_${i}" ${checks[it.item]?'checked':''}>
+            <div class="clabel">${it.item}<small>${Math.round(it.qty*10)/10} ${it.unit}</small></div>
+          </div>`).join('')}
+        <div class="checkline">
+          <input type="checkbox" id="shop_whey" ${checks['__whey']?'checked':''}>
+          <div class="clabel">ESN Whey Protein (für Shakes)<small>ca. ${sessionsRemaining}× Training diese Woche noch zu erwarten → ca. ${sessionsRemaining*30} g</small></div>
+        </div>
+      </div>
+    </div>`);
+
+  items.forEach((it,i)=>{
+    document.getElementById('shop_'+i).onchange = e=>{ checks[it.item]=e.target.checked; saveJSON('shoppingChecks_'+weekKey, checks); };
+  });
+  document.getElementById('shop_whey').onchange = e=>{ checks['__whey']=e.target.checked; saveJSON('shoppingChecks_'+weekKey, checks); };
 }
 
 const PROGRESSION = [
@@ -459,15 +582,73 @@ document.getElementById('exerciseCards').innerHTML = exercises.map(ex => `
   </div>
 `).join('');
 
-/* ---------- Weekday meal variety (Mittag/Abend je Wochentag) ---------- */
-const WEEKDAY_MEALS = [
-  {lunch:'Tofu-Reis-Bowl mit Gemüse', dinner:'Bohnen-Käse-Auflauf + Ofengemüse'},
-  {lunch:'Linsen-Nudeln mit Gemüse', dinner:'Rührei (4 Eier) + Vollkornbrot + Salat'},
-  {lunch:'Kichererbsen-Reis-Bowl (Falafel)', dinner:'Tofu-Pfanne + Süßkartoffel'},
-  {lunch:'Halloumi-Nudelsalat', dinner:'Gemüse-Curry mit Tofu + Couscous'},
-  {lunch:'Veggie-Geschnetzeltes (Soja) + Reis', dinner:'Käsespätzle + Ofengemüse'},
-  {lunch:'Frei wählbar (vegetarisch, Protein-Fokus)', dinner:'Frei wählbar (vegetarisch, Protein-Fokus)'},
-  {lunch:'Meal-Prep für die Woche', dinner:'Leicht, z. B. Gemüsesuppe + Ei'}
+/* ---------- Rezept-Datenbank (Mittag/Abend je Wochentag, plus fixe Mahlzeiten) ---------- */
+const BREAKFAST = { name:'Skyr-Porridge', ingredients:null,
+  extra:[
+    {item:'Skyr oder Magerquark', qty:500, unit:'g'},
+    {item:'Haferflocken', qty:60, unit:'g'},
+    {item:'Banane', qty:1, unit:'Stk'},
+    {item:'Zimt', qty:1, unit:'TL'}
+  ], carb:null,
+  steps:['Haferflocken in den Skyr/Magerquark einrühren.','Banane in Scheiben schneiden und untermischen.','Mit Zimt bestreuen. Fertig – kein Kochen nötig.'] };
+
+const SNACK = { name:'Skyr + Obst', carb:null,
+  extra:[
+    {item:'Skyr', qty:250, unit:'g'},
+    {item:'Beeren oder Apfel', qty:100, unit:'g'}
+  ],
+  steps:['Obst waschen (und ggf. schneiden).','Mit Skyr mischen. Fertig in 2 Minuten.'] };
+
+const SHAKE = { name:'Post-Workout Shake', carb:null,
+  extra:[
+    {item:'ESN Whey Protein', qty:30, unit:'g (1 Scoop)'},
+    {item:'Wasser oder Milch', qty:300, unit:'ml'}
+  ],
+  steps:['Beides in den Shaker geben.','20 Sekunden schütteln.','Direkt nach dem Training trinken.'] };
+
+const LUNCHES = [
+  { name:'Tofu-Reis-Bowl mit Gemüse', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+    extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Karotten)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Reis nach Packungsanweisung kochen.','Tofu würfeln, in Öl knusprig anbraten.','Gemüse dazugeben, 5 Min. mitbraten.','Mit Sojasauce abschmecken, mit Reis servieren.'] },
+  { name:'Linsen-Nudeln mit Gemüse', carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
+    extra:[{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Passierte Tomaten', qty:100, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
+    steps:['Nudeln nach Packungsanweisung kochen.','Gemüse klein schneiden, in Öl kurz anbraten.','Passierte Tomaten dazugeben, 5–10 Min. köcheln.','Mit den Nudeln vermengen, salzen/pfeffern.'] },
+  { name:'Kichererbsen-Reis-Bowl (Falafel)', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+    extra:[{item:'Kichererbsen (Dose, abgetropft) oder TK-Falafel', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
+    steps:['Reis kochen.','Falafel laut Packung braten/backen, oder Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) in der Pfanne anbraten.','Mit Reis und Salat servieren, Dressing dazu.'] },
+  { name:'Halloumi-Nudelsalat', carb:{item:'Nudeln (roh)', base:80, unit:'g'},
+    extra:[{item:'Halloumi', qty:125, unit:'g'},{item:'Cherrytomaten/Gurke', qty:150, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
+    steps:['Nudeln kochen, abkühlen lassen.','Halloumi in Scheiben schneiden, goldbraun braten.','Alles mit klein geschnittenem Gemüse und Öl vermengen.'] },
+  { name:'Veggie-Geschnetzeltes (Soja) + Reis', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+    extra:[{item:'Soja-Geschnetzeltes', qty:150, unit:'g'},{item:'Gemüse (Paprika/Zwiebel)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Reis kochen.','Soja-Geschnetzeltes laut Packung anbraten.','Gemüse dazugeben, mit Sojasauce würzen.','Mit Reis servieren.'] },
+  { name:'Frei wählbar (vegetarisch, Protein-Fokus)', freeform:true,
+    note:'Iss, worauf du Lust hast (z. B. Restaurant) – achte nur auf ausreichend Protein (Käse, Ei, Hülsenfrüchte, Tofu).' },
+  { name:'Meal-Prep für die Woche', freeform:true,
+    note:'Nutze den Sonntag, um 2–3 Portionen für die kommende Woche vorzukochen (z. B. Reis + Gemüse + Tofu in Boxen) – spart unter der Woche Zeit.' }
+];
+
+const DINNERS = [
+  { name:'Bohnen-Käse-Auflauf + Ofengemüse', carb:{item:'Ofengemüse (z. B. Zucchini, Paprika, Süßkartoffel)', base:250, unit:'g'},
+    extra:[{item:'Weiße Bohnen (Dose, abgetropft)', qty:200, unit:'g'},{item:'Käse gerieben', qty:50, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Ofen auf 200°C vorheizen.','Gemüse in Stücke schneiden, mit Öl vermengen, 20–25 Min. rösten.','Bohnen in eine Auflaufform, mit Käse bestreuen, letzte 10 Min. mit in den Ofen.','Zusammen servieren.'] },
+  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', carb:null,
+    extra:[{item:'Eier', qty:4, unit:'Stk'},{item:'Vollkornbrot', qty:2, unit:'Scheiben (ca. 70 g)'},{item:'Salat/Tomate', qty:100, unit:'g'},{item:'Butter/Öl', qty:1, unit:'TL'}],
+    steps:['Eier verquirlen.','In der Pfanne mit Butter/Öl bei mittlerer Hitze langsam stocken lassen, dabei umrühren.','Mit Brot und Salat servieren.'] },
+  { name:'Tofu-Pfanne + Süßkartoffel', carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+    extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Brokkoli/Paprika)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'TL'}],
+    steps:['Süßkartoffel schälen, würfeln, 15–20 Min. kochen oder im Ofen rösten.','Tofu würfeln, mit Gemüse in der Pfanne anbraten.','Sojasauce dazugeben, zusammen servieren.'] },
+  { name:'Gemüse-Curry mit Tofu + Couscous', carb:{item:'Couscous (roh)', base:60, unit:'g'},
+    extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Karotten, Erbsen, Paprika)', qty:200, unit:'g'},{item:'Kokosmilch', qty:100, unit:'ml'},{item:'Currypulver', qty:1, unit:'TL'}],
+    steps:['Couscous mit heißem Wasser aufgießen, 5 Min. quellen lassen.','Tofu und Gemüse in der Pfanne anbraten.','Currypulver und Kokosmilch dazugeben, 10 Min. köcheln.','Mit Couscous servieren.'] },
+  { name:'Käsespätzle + Ofengemüse', carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
+    extra:[{item:'Bergkäse gerieben', qty:60, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Ofengemüse', qty:200, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Ofengemüse wie gewohnt rösten (200°C, 20–25 Min.).','Spätzle kochen.','Zwiebel in Öl goldbraun braten, Spätzle und Käse untermischen bis der Käse schmilzt.','Mit Gemüse servieren.'] },
+  { name:'Frei wählbar (vegetarisch, Protein-Fokus)', freeform:true,
+    note:'Iss, worauf du Lust hast (z. B. Restaurant) – achte nur auf ausreichend Protein (Käse, Ei, Hülsenfrüchte, Tofu).' },
+  { name:'Leicht, z. B. Gemüsesuppe + Ei', carb:null,
+    extra:[{item:'Gemüsesuppe', qty:300, unit:'g'},{item:'Eier', qty:2, unit:'Stk'}],
+    steps:['Suppe erhitzen.','Eier 8–10 Min. hart kochen, schälen.','Zusammen servieren.'] }
 ];
 
 /* ---------- Scheduling engine ---------- */
@@ -620,24 +801,42 @@ function renderToday(){
   document.getElementById('out_carbs').textContent = Math.round(macros.carbG)+'g';
 
   const scale = Math.min(2, Math.max(0.5, macros.carbG / BASELINE_CARBS));
-  const riceG = Math.round(130*scale/10)*10;
-  const potatoG = Math.round(200*scale/10)*10;
-  const wm = WEEKDAY_MEALS[wdIdx];
-  const meals = [
-    {t:'Frühstück – Skyr-Porridge', d:'500 g Skyr/Magerquark + 60 g Haferflocken + 1 Banane + Zimt.'},
-    {t:'Mittag – ' + wm.lunch, d:`150 g Tofu/Linsen/Kichererbsen je nach Rezept + ${riceG} g Reis (roh gewogen) + Gemüse.`},
-    {t:'Post-Workout Shake', d:'1 Scoop ESN Whey + Wasser oder Milch.', onlyIfTraining:true},
-    {t:'Snack – Skyr + Obst', d:'250 g Skyr + Beeren/Apfel.'},
-    {t:'Abend – ' + wm.dinner, d:`150–200 g Protein nach Rezept + ${potatoG} g Kartoffeln/Süßkartoffeln + Salat.`}
+  function scaledQty(base){ return Math.round(base*scale/10)*10; }
+  const lunch = LUNCHES[wdIdx];
+  const dinner = DINNERS[wdIdx];
+  const lunchQty = lunch.carb ? scaledQty(lunch.carb.base) : null;
+  const dinnerQty = dinner.carb ? scaledQty(dinner.carb.base) : null;
+
+  function teaserFor(recipe, qty){
+    if(recipe.freeform) return recipe.note;
+    const parts = [];
+    if(recipe.carb) parts.push(fmtIngredient(recipe.carb.item, qty ?? recipe.carb.base, recipe.carb.unit));
+    parts.push(recipe.extra.map(e=>e.item).join(', '));
+    return parts.join(' + ');
+  }
+
+  const mealDefs = [
+    {key:'breakfast', label:'Frühstück – ' + BREAKFAST.name, recipe:BREAKFAST, qty:null},
+    {key:'lunch', label:'Mittag – ' + lunch.name, recipe:lunch, qty:lunchQty},
+    {key:'shake', label:'Post-Workout Shake', recipe:SHAKE, qty:null, onlyIfTraining:true},
+    {key:'snack', label:'Snack – ' + SNACK.name, recipe:SNACK, qty:null},
+    {key:'dinner', label:'Abend – ' + dinner.name, recipe:dinner, qty:dinnerQty}
   ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone);
 
-  document.getElementById('mealList').innerHTML = meals.map((m,i)=>`
-    <div class="checkline">
-      <input type="checkbox" id="meal${i}" ${day.meals[i]?'checked':''}>
-      <div class="clabel">${m.t}<small>${m.d}</small></div>
+  document.getElementById('mealList').innerHTML = mealDefs.map(m=>`
+    <div class="exrow">
+      <input type="checkbox" id="meal_${m.key}" ${day.meals[m.key]?'checked':''}>
+      <span class="exname" data-key="${m.key}">${m.label}<small>${teaserFor(m.recipe, m.qty)}</small></span>
+      <span class="chev">›</span>
     </div>`).join('');
-  meals.forEach((m,i)=>{
-    document.getElementById('meal'+i).onchange = e=>{ day.meals[i]=e.target.checked; saveDays(); };
+  mealDefs.forEach(m=>{
+    document.getElementById('meal_'+m.key).onchange = e=>{ day.meals[m.key]=e.target.checked; saveDays(); };
+  });
+  document.getElementById('mealList').querySelectorAll('.exname').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const m = mealDefs.find(x=>x.key===el.dataset.key);
+      showRecipeDetail(m.recipe, m.qty);
+    });
   });
 }
 
@@ -648,6 +847,53 @@ function resetAllData(){
     saveJSON('profile', {});
     location.reload();
   }
+}
+
+/* ---------- Wochenrückblick (Mo bis heute) ---------- */
+function renderReview(){
+  const monday = mondayOfWeek(TODAY);
+  let totalKm=0, totalElev=0, rideDays=0, strengthSessions=0, cheatDays=0, trackedDays=0;
+  const exerciseCounts = {};
+  for(let i=0;i<7;i++){
+    const d = addDays(monday,i);
+    if(d.getTime() > TODAY.getTime()) break;
+    const k = keyOf(d);
+    const dl = days[k];
+    if(!dl){ continue; }
+    if(dl.rest){ cheatDays++; continue; }
+    trackedDays++;
+    totalKm += dl.km||0;
+    totalElev += dl.elev||0;
+    if((dl.km||0) > 0) rideDays++;
+    if(dl.strengthDone){
+      strengthSessions++;
+      Object.keys(dl.exDone||{}).forEach(name=>{ if(dl.exDone[name]) exerciseCounts[name] = (exerciseCounts[name]||0)+1; });
+    }
+  }
+  const kcalSaved = Math.round(trackedDays * profile.deficit);
+  const exerciseList = Object.entries(exerciseCounts).sort((a,b)=>b[1]-a[1]);
+
+  document.getElementById('reviewContent').innerHTML = `
+    <div class="card">
+      <h2>Diese Woche (Mo–heute)</h2>
+      <div class="grid3">
+        <div class="stat"><b>${Math.round(totalKm)}</b><span>km Rad</span></div>
+        <div class="stat"><b>${Math.round(totalElev)}</b><span>Höhenmeter</span></div>
+        <div class="stat"><b>${rideDays}</b><span>Rad-Tage</span></div>
+      </div>
+      <div class="grid3" style="margin-top:8px;">
+        <div class="stat"><b>${strengthSessions}</b><span>Krafteinheiten</span></div>
+        <div class="stat"><b>${kcalSaved}</b><span>kcal Defizit (geplant)</span></div>
+        <div class="stat"><b>${cheatDays}</b><span>Cheat-/Ruhetage</span></div>
+      </div>
+      <p class="sub" style="margin-top:10px;">Das kcal-Defizit ist der rechnerische Wert aus deinem Profil (${profile.deficit} kcal/Tag) für jeden getrackten Tag – keine Messung deiner tatsächlichen Kalorienaufnahme, sondern ein Hinweis, wie konsequent du deinem Plan gefolgt bist.</p>
+    </div>
+    <div class="card">
+      <h2>Kraftübungen diese Woche</h2>
+      ${exerciseList.length ? `<ul class="exlist">${exerciseList.map(([n,c])=>`<li>${n}<small>${c}×</small></li>`).join('')}</ul>` : '<p class="sub">Diese Woche noch keine Krafteinheit abgeschlossen.</p>'}
+    </div>
+    ${cheatDays>0 ? `<div class="card"><h2>Cheat-/Ruhetage</h2><p class="sub">${cheatDays} Tag(e) diese Woche als Ruhetag/Cheatday markiert. An diesen Tagen wurde keine Nahrungsaufnahme getrackt – sie zählen nicht ins Kaloriendefizit oben.</p></div>` : ''}
+  `;
 }
 
 renderToday();
