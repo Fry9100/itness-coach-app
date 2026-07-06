@@ -289,6 +289,7 @@
           <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
         </div>
         <div id="mealList" style="margin-top:6px;"></div>
+        <div id="extraCarbNote"></div>
       </div>
       <button class="pill secondary" style="margin-top:12px;" onclick="showShoppingList()">🛒 Einkaufsliste bis Sonntag</button>
     </div>
@@ -680,8 +681,8 @@ function showShoppingList(){
     }
     remainingNonRestDays++;
     const doneMeals = (first && dayLog) ? dayLog.meals || {} : {};
-    const macros = computeMacros(dayLog?dayLog.km||0:0, dayLog?dayLog.elev||0:0, !!(dayLog&&dayLog.strengthDone));
-    const dayScale = Math.min(2, Math.max(0.5, macros.carbG / BASELINE_CARBS));
+    const dayRideLoad = (dayLog?dayLog.km||0:0) + (dayLog?dayLog.elev||0:0)/50;
+    const dayScale = Math.min(2.5, Math.max(1, 1 + dayRideLoad/120));
     const sq = base => Math.round(base*dayScale/10)*10;
 
     const lunch = LUNCHES[wIdx];
@@ -882,7 +883,6 @@ function computeMacros(km, elev, strengthToday){
   const carbG = carbKcal/4;
   return { target, proteinG, fatG, carbG };
 }
-const BASELINE_CARBS = computeMacros(0,0,false).carbG; // Referenz ohne Rad/Training
 
 /* ---------- Render: day strip ---------- */
 function renderDayStrip(){
@@ -1047,7 +1047,10 @@ function renderToday(){
   document.getElementById('out_protein').textContent = Math.round(macros.proteinG)+'g';
   document.getElementById('out_carbs').textContent = Math.round(macros.carbG)+'g';
 
-  const scale = Math.min(2, Math.max(0.5, macros.carbG / BASELINE_CARBS));
+  // Portionsgröße hängt direkt an den gefahrenen km/Höhenmetern, nicht am ganzen Kalorien-Modell -
+  // so ist der Zusammenhang "mehr Rad = mehr Portion" immer nachvollziehbar und einfach zu berechnen.
+  const rideLoad = (day.km||0) + (day.elev||0)/50;
+  const scale = Math.min(2.5, Math.max(1, 1 + rideLoad/120));
   function scaledQty(base){ return Math.round(base*scale/10)*10; }
   const lunch = LUNCHES[wdIdx];
   const dinner = DINNERS[wdIdx];
@@ -1079,6 +1082,10 @@ function renderToday(){
       showRecipeDetail(m.recipe, m.qty, m.icon);
     });
   });
+
+  document.getElementById('extraCarbNote').innerHTML = bigRide
+    ? `<p class="sub" style="margin-top:8px;">🚴 Große Radausfahrt heute – die größere Reis-/Nudel-Portion allein deckt den Mehrbedarf oft nicht mehr ab. Iss über den Tag verteilt noch 1–2 zusätzliche kohlenhydratreiche Snacks (z. B. Banane, Weißbrot mit Honig, Sportriegel, weiterer Reis-Nachschlag).</p>`
+    : '';
 }
 
 function resetAllData(){
