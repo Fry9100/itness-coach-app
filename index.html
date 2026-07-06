@@ -223,6 +223,7 @@
         <li><b>Kohlenhydrate nach Radlast:</b> je mehr km/Höhenmeter du heute einträgst, desto mehr Reis/Kartoffeln empfiehlt dir die App automatisch.</li>
         <li><b>Moderates Kaloriendefizit</b> statt Crash-Diät, damit eher Fett statt Muskeln verloren geht.</li>
         <li>Gemüse zu jeder Hauptmahlzeit, mind. 3&nbsp;Liter trinken, Alkohol nur gelegentlich.</li>
+        <li><b>Mittag ist Meal Prep:</b> da du in der Arbeit nicht kochen kannst, werden alle Mittagsrezepte am Vorabend (oder auf Vorrat am Wochenende) zubereitet und kalt bzw. in der Mikrowelle mitgenommen.</li>
       </ul>
     </div>
 
@@ -609,23 +610,23 @@ const SHAKE = { name:'Post-Workout Shake', carb:null,
 const LUNCHES = [
   { name:'Tofu-Reis-Bowl mit Gemüse', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Karotten)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
-    steps:['Reis nach Packungsanweisung kochen.','Tofu würfeln, in Öl knusprig anbraten.','Gemüse dazugeben, 5 Min. mitbraten.','Mit Sojasauce abschmecken, mit Reis servieren.'] },
+    steps:['Am Vorabend (oder auf Vorrat am Wochenende) zubereiten: Reis kochen, Tofu würfeln und in Öl knusprig anbraten, Gemüse 5 Min. mitbraten, mit Sojasauce abschmecken.','Alles in eine Lunchbox füllen, im Kühlschrank lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
   { name:'Linsen-Nudeln mit Gemüse', carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Passierte Tomaten', qty:100, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
-    steps:['Nudeln nach Packungsanweisung kochen.','Gemüse klein schneiden, in Öl kurz anbraten.','Passierte Tomaten dazugeben, 5–10 Min. köcheln.','Mit den Nudeln vermengen, salzen/pfeffern.'] },
+    steps:['Am Vorabend zubereiten: Nudeln kochen, Gemüse in Öl anbraten, passierte Tomaten dazugeben, 5–10 Min. köcheln, mit den Nudeln vermengen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit in der Mikrowelle aufwärmen (2–3 Min.) oder kalt essen.'] },
   { name:'Kichererbsen-Reis-Bowl', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
-    steps:['Reis kochen.','Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) in der Pfanne kurz anbraten.','Mit Reis und Salat servieren, Dressing dazu.'] },
+    steps:['Am Vorabend zubereiten: Reis kochen, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Salat/Gemüse in eine Lunchbox schichten, Dressing separat mitnehmen.','In der Arbeit den warmen Teil in der Mikrowelle aufwärmen, Salat kalt dazu, Dressing erst kurz vorher drüber.'] },
   { name:'Halloumi-Nudelsalat', carb:{item:'Nudeln (roh)', base:80, unit:'g'},
     extra:[{item:'Halloumi', qty:125, unit:'g'},{item:'Cherrytomaten/Gurke', qty:150, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
-    steps:['Nudeln kochen, abkühlen lassen.','Halloumi in Scheiben schneiden, goldbraun braten.','Alles mit klein geschnittenem Gemüse und Öl vermengen.'] },
+    steps:['Am Vorabend zubereiten: Nudeln kochen und abkühlen lassen, Halloumi in Scheiben goldbraun braten.','Mit Gemüse und Öl vermengen, in eine Lunchbox füllen, kühl lagern.','Schmeckt kalt – einfach mit zur Arbeit nehmen, kein Aufwärmen nötig.'] },
   { name:'Veggie-Geschnetzeltes (Soja) + Reis', carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Soja-Geschnetzeltes', qty:150, unit:'g'},{item:'Gemüse (Paprika/Zwiebel)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
-    steps:['Reis kochen.','Soja-Geschnetzeltes laut Packung anbraten.','Gemüse dazugeben, mit Sojasauce würzen.','Mit Reis servieren.'] },
+    steps:['Am Vorabend zubereiten: Reis kochen, Soja-Geschnetzeltes anbraten, Gemüse dazugeben, mit Sojasauce würzen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen.'] },
   { name:'Frei wählbar (vegetarisch, Protein-Fokus)', freeform:true,
     note:'Iss, worauf du Lust hast (z. B. Restaurant) – achte nur auf ausreichend Protein (Käse, Ei, Hülsenfrüchte, Tofu).' },
   { name:'Meal-Prep für die Woche', freeform:true,
-    note:'Nutze den Sonntag, um 2–3 Portionen für die kommende Woche vorzukochen (z. B. Reis + Gemüse + Tofu in Boxen) – spart unter der Woche Zeit.' }
+    note:'Nutze den Sonntag, um für Montag bis Freitag vorzukochen – z. B. gleich 2–3 der Wochenrezepte in größerer Menge zubereiten und in Boxen portionieren. So musst du unter der Woche abends nur noch kurz nachkochen oder gar nicht.' }
 ];
 
 const DINNERS = [
@@ -817,7 +818,7 @@ function renderToday(){
 
   const mealDefs = [
     {key:'breakfast', label:'Frühstück – ' + BREAKFAST.name, recipe:BREAKFAST, qty:null},
-    {key:'lunch', label:'Mittag – ' + lunch.name, recipe:lunch, qty:lunchQty},
+    {key:'lunch', label:'Mittag (vorbereitet) – ' + lunch.name, recipe:lunch, qty:lunchQty},
     {key:'shake', label:'Post-Workout Shake', recipe:SHAKE, qty:null, onlyIfTraining:true},
     {key:'snack', label:'Snack – ' + SNACK.name, recipe:SNACK, qty:null},
     {key:'dinner', label:'Abend – ' + dinner.name, recipe:dinner, qty:dinnerQty}
