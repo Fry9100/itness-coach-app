@@ -13,126 +13,221 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f172a'/%3E%3Ctext x='50' y='64' font-size='54' text-anchor='middle'%3E💪%3C/text%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#f4f5f7; --card:#ffffff; --text:#12141a; --sub:#5a5f6b;
-    --accent:#e0552b; --accent2:#1f7a5c; --line:#e6e7eb; --chip:#eef0f3;
-    --danger:#b3261e; --ok:#1f7a5c; --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --bg:#f6f3ee; --card:#ffffff; --card2:#fff8f2; --text:#181512; --sub:#726b60;
+    --accent:#e15a2e; --accent-strong:#c8481f; --accent-soft:rgba(225,90,46,.11);
+    --accent2:#1f9c78; --recovery-soft:rgba(31,156,120,.12);
+    --line:#e8e1d5; --chip:#f1ece2;
+    --danger:#c0392b; --ok:#1f9c78;
+    --shadow: 0 1px 2px rgba(30,20,10,.04), 0 8px 20px rgba(30,20,10,.06);
+    --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display",Segoe UI,Roboto,sans-serif;
+    --font-text:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#0f1115; --card:#1a1d24; --text:#f2f3f5; --sub:#9aa0ac;
-      --accent:#ff7a4d; --accent2:#34c28f; --line:#2a2d35; --chip:#22252d;
-      --ok:#34c28f; --shadow: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+      --bg:#15171b; --card:#1c1f24; --card2:#242017; --text:#f3f1ec; --sub:#96938d;
+      --accent:#ff6b3d; --accent-strong:#ff8a5c; --accent-soft:rgba(255,107,61,.16);
+      --accent2:#2fd4a0; --recovery-soft:rgba(47,212,160,.15);
+      --line:#2b2e33; --chip:#22252a;
+      --danger:#ff6b6b; --ok:#2fd4a0;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 22px rgba(0,0,0,.35);
     }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15171b; --card:#1c1f24; --card2:#242017; --text:#f3f1ec; --sub:#96938d;
+    --accent:#ff6b3d; --accent-strong:#ff8a5c; --accent-soft:rgba(255,107,61,.16);
+    --accent2:#2fd4a0; --recovery-soft:rgba(47,212,160,.15);
+    --line:#2b2e33; --chip:#22252a;
+    --danger:#ff6b6b; --ok:#2fd4a0;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 22px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f3ee; --card:#ffffff; --card2:#fff8f2; --text:#181512; --sub:#726b60;
+    --accent:#e15a2e; --accent-strong:#c8481f; --accent-soft:rgba(225,90,46,.11);
+    --accent2:#1f9c78; --recovery-soft:rgba(31,156,120,.12);
+    --line:#e8e1d5; --chip:#f1ece2;
+    --danger:#c0392b; --ok:#1f9c78;
+    --shadow: 0 1px 2px rgba(30,20,10,.04), 0 8px 20px rgba(30,20,10,.06);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
+    font-family:var(--font-text);
     min-height:100%; min-height:100dvh; overscroll-behavior-y:none;}
-  body{padding-bottom:calc(110px + env(safe-area-inset-bottom));}
-  header.top{position:sticky;top:0;z-index:20;background:var(--bg);
-    padding:calc(14px + env(safe-area-inset-top)) 16px 8px;border-bottom:1px solid var(--line);}
-  header.top h1{font-size:19px;margin:0 0 2px;font-weight:700;letter-spacing:-.2px;}
-  header.top p{margin:0;color:var(--sub);font-size:12.5px;}
+  body{padding-bottom:calc(112px + env(safe-area-inset-bottom));}
+  header.top{position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,var(--card2) 0%,var(--bg) 100%);
+    padding:calc(14px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line);}
+  header.top h1{font-family:var(--font-display);font-size:22px;margin:0 0 2px;font-weight:800;
+    letter-spacing:-.4px;text-wrap:balance;}
+  header.top p{margin:0;color:var(--sub);font-size:12.5px;font-weight:500;}
   main{padding:14px 14px 24px;max-width:640px;margin:0 auto;}
   section.view{display:none;}
-  section.view.active{display:block; animation:fade .18s ease;}
-  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
-    padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
-  .card h2{margin:0 0 10px;font-size:15.5px;font-weight:700;}
-  .card h3{margin:14px 0 6px;font-size:13.5px;font-weight:700;color:var(--accent);
-    text-transform:uppercase;letter-spacing:.4px;}
-  .card p{margin:0 0 8px;font-size:14px;line-height:1.5;color:var(--text);}
+  section.view.active{display:block; animation:viewIn .28s cubic-bezier(.22,.8,.32,1);}
+  @keyframes viewIn{from{opacity:0;transform:translateY(8px) scale(.99);}to{opacity:1;transform:none;}}
+  @media (prefers-reduced-motion: reduce){
+    section.view.active{animation:none;}
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+  }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:16px;margin-bottom:12px;box-shadow:var(--shadow);
+    animation:cardIn .32s cubic-bezier(.22,.8,.32,1) backwards;}
+  .card:nth-of-type(1){animation-delay:0ms;}
+  .card:nth-of-type(2){animation-delay:35ms;}
+  .card:nth-of-type(3){animation-delay:70ms;}
+  .card:nth-of-type(4){animation-delay:105ms;}
+  @keyframes cardIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .card h2{font-family:var(--font-display);margin:0 0 10px;font-size:16.5px;font-weight:800;
+    letter-spacing:-.2px;text-wrap:balance;}
+  .card h3{margin:14px 0 6px;font-size:12px;font-weight:800;color:var(--accent);
+    text-transform:uppercase;letter-spacing:.6px;}
+  .card p{margin:0 0 8px;font-size:14px;line-height:1.55;color:var(--text);}
   .sub{color:var(--sub) !important;font-size:12.5px !important;}
-  .badge{display:inline-block;background:var(--chip);color:var(--text);font-size:11.5px;
-    font-weight:600;padding:3px 9px;border-radius:99px;margin:0 4px 4px 0;}
+  .badge{display:inline-block;background:var(--chip);color:var(--text);font-size:11px;
+    font-weight:700;padding:3px 10px;border-radius:99px;margin:0 4px 4px 0;
+    text-transform:uppercase;letter-spacing:.3px;}
   .badge.accent{background:var(--accent);color:#fff;}
   .badge.accent2{background:var(--accent2);color:#fff;}
   .badge.ok{background:var(--ok);color:#fff;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-  .stat{background:var(--chip);border-radius:12px;padding:10px;text-align:center;}
-  .stat b{display:block;font-size:17px;}
-  .stat span{font-size:10.5px;color:var(--sub);}
-  label{display:block;font-size:12px;color:var(--sub);margin:8px 0 4px;}
-  input[type=number]{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
-    background:var(--bg);color:var(--text);font-size:15px;}
+  .stat{background:var(--chip);border-radius:14px;padding:12px 8px 10px;text-align:center;
+    border-bottom:2.5px solid var(--accent-soft);}
+  .stat b{display:block;font-family:var(--font-display);font-size:20px;font-weight:800;
+    font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
+  .stat span{font-size:10px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+  label{display:block;font-size:12px;color:var(--sub);margin:8px 0 4px;font-weight:600;}
+  input[type=number]{width:100%;padding:10px 11px;border-radius:11px;border:1.5px solid var(--line);
+    background:var(--bg);color:var(--text);font-size:15px;font-variant-numeric:tabular-nums;
+    transition:border-color .15s ease;}
+  input[type=number]:focus{outline:none;border-color:var(--accent);}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
   th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);}
-  th{color:var(--sub);font-weight:600;font-size:11.5px;text-transform:uppercase;}
+  td{font-variant-numeric:tabular-nums;}
+  th{color:var(--sub);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
   .exlist{list-style:none;margin:8px 0 0;padding:0;}
   .exlist li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;
     border-top:1px dashed var(--line);font-size:13.5px;}
   .exlist li:first-child{border-top:none;}
-  .exlist small{color:var(--sub);white-space:nowrap;}
-  .exrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line);}
+  .exlist small{color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .exrow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-top:1px dashed var(--line);
+    border-radius:10px;transition:background-color .15s ease;}
   .exrow:first-child{border-top:none;}
-  .exrow input{width:20px;height:20px;flex:0 0 auto;}
-  .exrow .exname{flex:1;font-size:13.5px;cursor:pointer;}
-  .exrow .exname small{display:block;color:var(--sub);font-size:11.5px;}
-  .exrow .chev{color:var(--sub);font-size:16px;flex:0 0 auto;}
-  .backbtn{background:none;border:none;color:var(--accent);font-size:14px;font-weight:600;
-    padding:2px 0 12px;margin:0;}
-  .checkline{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
+  .exrow:active{background:var(--chip);}
+  .exrow .exname{flex:1;font-size:14px;font-weight:600;cursor:pointer;}
+  .exrow .exname small{display:block;color:var(--sub);font-size:11.5px;font-weight:500;margin-top:1px;}
+  .exrow .chev{color:var(--sub);font-size:17px;flex:0 0 auto;transition:transform .15s ease;}
+  .exrow:active .chev{transform:translateX(2px);color:var(--accent);}
+  .exicon{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:var(--accent-soft);
+    display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .backbtn{background:none;border:none;color:var(--accent);font-size:14.5px;font-weight:700;
+    padding:6px 0 12px;margin:0;display:flex;align-items:center;gap:2px;}
+  .backbtn:active{opacity:.6;}
+  .checkline{display:flex;align-items:center;gap:10px;padding:10px 2px;border-top:1px solid var(--line);}
   .checkline:first-of-type{border-top:none;}
-  .checkline input{width:20px;height:20px;flex:0 0 auto;}
-  .checkline .clabel{flex:1;font-size:13.5px;}
-  .checkline .clabel small{display:block;color:var(--sub);font-size:11.5px;}
+  .checkline .clabel{flex:1;font-size:13.5px;font-weight:600;}
+  .checkline .clabel small{display:block;color:var(--sub);font-size:11.5px;font-weight:500;margin-top:1px;}
+  /* custom checkbox with pop-check animation */
+  input[type=checkbox]{appearance:none;-webkit-appearance:none;width:22px;height:22px;flex:0 0 auto;
+    border:2px solid var(--line);border-radius:7px;position:relative;background:var(--card);
+    cursor:pointer;transition:border-color .15s ease,background-color .15s ease;}
+  input[type=checkbox]:checked{background:var(--ok);border-color:var(--ok);}
+  input[type=checkbox]:checked::after{content:'';position:absolute;left:6px;top:2px;width:6px;height:11px;
+    border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);
+    animation:checkPop .22s cubic-bezier(.3,1.5,.6,1);}
+  @keyframes checkPop{from{transform:rotate(45deg) scale(0);}to{transform:rotate(45deg) scale(1);}}
   .exCard{display:flex;gap:12px;align-items:flex-start;}
-  .exCard svg{flex:0 0 74px;width:74px;height:118px;background:var(--chip);border-radius:10px;padding:4px;}
-  .hl{fill:var(--accent);opacity:.85;}
-  .base{fill:var(--sub);opacity:.35;}
-  .steps{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.55;}
-  .steps li{margin-bottom:2px;}
+  .exCard svg{flex:0 0 74px;width:74px;height:118px;background:var(--chip);border-radius:12px;padding:4px;}
+  .hl{fill:var(--accent);opacity:.9;}
+  .base{fill:var(--sub);opacity:.32;}
+  .medallion{width:56px;height:56px;border-radius:16px;background:var(--accent-soft);
+    display:flex;align-items:center;justify-content:center;font-size:28px;flex:0 0 auto;}
+  .steps{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.6;}
+  .steps li{margin-bottom:3px;}
   .ytbtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--chip);
-    color:var(--text);text-decoration:none;font-size:12.5px;font-weight:600;padding:8px 12px;
-    border-radius:10px;border:1px solid var(--line);}
-  .warn{background:rgba(179,38,30,.08);border:1px solid rgba(179,38,30,.25);border-radius:12px;
-    padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--text);}
+    color:var(--text);text-decoration:none;font-size:12.5px;font-weight:700;padding:9px 13px;
+    border-radius:11px;border:1px solid var(--line);transition:transform .12s ease;}
+  .ytbtn:active{transform:scale(.96);}
+  .warn{background:rgba(192,57,43,.09);border:1px solid rgba(192,57,43,.25);border-radius:14px;
+    padding:11px 13px;font-size:12.5px;line-height:1.5;color:var(--text);}
   .warn b{color:var(--danger);}
-  .okbox{background:rgba(31,122,92,.08);border:1px solid rgba(31,122,92,.3);border-radius:12px;
-    padding:10px 12px;font-size:13px;line-height:1.5;}
-  button.add, button.pill{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:9px 16px;
-    font-size:13.5px;font-weight:700;}
+  .okbox{background:var(--recovery-soft);border:1px solid rgba(31,156,120,.3);border-radius:14px;
+    padding:11px 13px;font-size:13px;line-height:1.5;font-weight:600;}
+  button.add, button.pill{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:11px 18px;
+    font-size:13.5px;font-weight:700;transition:transform .12s ease,opacity .12s ease;}
+  button.add:active, button.pill:active{transform:scale(.96);opacity:.9;}
   button.pill.secondary{background:var(--chip);color:var(--text);}
   nav.tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;
-    min-height:56px;background:var(--card);border-top:1px solid var(--line);
-    padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:30;}
+    min-height:58px;background:var(--card);border-top:1px solid var(--line);
+    padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:30;
+    backdrop-filter:blur(14px);}
   nav.tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;
-    align-items:center;gap:2px;color:var(--sub);font-size:10px;font-weight:600;padding:6px 2px;}
-  nav.tabbar button .ic{font-size:20px;}
+    align-items:center;gap:3px;color:var(--sub);font-size:10px;font-weight:700;padding:6px 2px;
+    transition:color .15s ease;}
+  nav.tabbar button .ic{font-size:19px;width:38px;height:26px;border-radius:9px;display:flex;
+    align-items:center;justify-content:center;transition:background-color .18s ease,transform .18s ease;}
   nav.tabbar button.active{color:var(--accent);}
+  nav.tabbar button.active .ic{background:var(--accent-soft);transform:translateY(-1px);}
   .rowflex{display:flex;justify-content:space-between;align-items:center;}
+  /* streak / weekly progress hero */
+  .streakbar{display:flex;align-items:center;gap:14px;}
+  .streakflame{font-size:30px;flex:0 0 auto;filter:drop-shadow(0 2px 4px var(--accent-soft));}
+  .streakflame.lit{animation:flameFlicker 1.6s ease-in-out infinite;}
+  @keyframes flameFlicker{0%,100%{transform:scale(1) rotate(-2deg);}50%{transform:scale(1.08) rotate(2deg);}}
+  .streaknum{font-family:var(--font-display);font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .progresswrap{flex:1;}
+  .progresstrack{height:9px;border-radius:99px;background:var(--chip);overflow:hidden;margin-top:6px;}
+  .progressfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-strong));
+    width:0%;transition:width .6s cubic-bezier(.22,.8,.32,1);}
   /* day strip */
   .daystrip{display:flex;gap:6px;margin-bottom:12px;}
-  .daychip{flex:1;text-align:center;background:var(--card);border:1px solid var(--line);
-    border-radius:12px;padding:8px 2px;font-size:11px;color:var(--sub);font-weight:600;}
-  .daychip .dnum{display:block;font-size:14px;color:var(--text);margin-top:1px;}
-  .daychip.today{border-color:var(--accent);}
-  .daychip.selected{background:var(--accent);color:#fff;}
+  .daychip{flex:1;text-align:center;background:var(--card);border:1.5px solid var(--line);
+    border-radius:13px;padding:8px 2px;font-size:10.5px;color:var(--sub);font-weight:700;
+    text-transform:uppercase;letter-spacing:.2px;transition:transform .15s ease,box-shadow .15s ease;}
+  .daychip .dnum{display:block;font-size:15px;color:var(--text);margin-top:2px;font-weight:700;
+    font-variant-numeric:tabular-nums;}
+  .daychip.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-soft) inset;}
+  .daychip.selected{background:var(--accent);color:#fff;border-color:var(--accent);
+    box-shadow:0 4px 12px var(--accent-soft);transform:translateY(-2px);}
   .daychip.selected .dnum{color:#fff;}
   .daychip.selected.today{border-color:var(--accent);}
   .daychip.done .dnum::after{content:" ✓";color:var(--ok);}
   .daychip.selected.done .dnum::after{color:#fff;}
   .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-  .calcell{aspect-ratio:1;border-radius:8px;background:var(--chip);display:flex;flex-direction:column;
-    align-items:center;justify-content:center;font-size:10px;color:var(--sub);gap:1px;}
-  .calcell .cnum{font-size:11px;font-weight:600;color:var(--text);}
+  .calcell{aspect-ratio:1;border-radius:9px;background:var(--chip);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:10px;color:var(--sub);gap:1px;
+    transition:transform .12s ease;}
+  .calcell .cnum{font-size:11px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
   .calcell.strength{background:var(--accent);}
   .calcell.strength .cnum{color:#fff;}
   .calcell.rest{background:var(--line);}
-  .calcell.ride{background:rgba(31,122,92,.25);}
-  .calcell.future{opacity:.35;}
-  .calLegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--sub);}
+  .calcell.ride{background:var(--recovery-soft);}
+  .calcell.future{opacity:.3;}
+  .calLegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--sub);font-weight:500;}
   .calLegend span{display:inline-flex;align-items:center;gap:4px;}
   .calLegend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
   .toggle{display:flex;align-items:center;gap:8px;}
-  .toggle input{width:20px;height:20px;}
   .num-inline{display:flex;gap:8px;}
   .num-inline > div{flex:1;}
+  /* celebration overlay */
+  #celebrate{position:fixed;inset:0;pointer-events:none;z-index:90;display:flex;
+    align-items:center;justify-content:center;opacity:0;}
+  #celebrate.show{animation:celebrateShow 1.5s ease forwards;}
+  @keyframes celebrateShow{
+    0%{opacity:0;}
+    10%{opacity:1;}
+    80%{opacity:1;}
+    100%{opacity:0;}
+  }
+  .celebrate-card{background:var(--card);border:1px solid var(--line);border-radius:20px;
+    padding:20px 28px;box-shadow:0 12px 32px rgba(0,0,0,.25);text-align:center;
+    animation:celebratePop .5s cubic-bezier(.2,1.6,.4,1);}
+  @keyframes celebratePop{from{transform:scale(.6);}to{transform:scale(1);}}
+  .celebrate-card .cicon{font-size:38px;display:block;margin-bottom:4px;}
+  .celebrate-card .ctitle{font-family:var(--font-display);font-weight:800;font-size:16px;}
 </style>
 </head>
 <body>
+
+<div id="celebrate"><div class="celebrate-card"><span class="cicon">🔥</span><span class="ctitle" id="celebrateText">Einheit geschafft!</span></div></div>
 
 <header class="top">
   <h1 id="pageTitle">Heute</h1>
@@ -143,6 +238,19 @@
 
   <!-- ===================== HEUTE (Tages-Ansicht) ===================== -->
   <section class="view active" id="view-today">
+
+    <div class="card" id="streakCard">
+      <div class="streakbar">
+        <div style="text-align:center;">
+          <div class="streakflame" id="streakFlame">🔥</div>
+          <div class="streaknum" id="streakNum">0</div>
+        </div>
+        <div class="progresswrap">
+          <div class="rowflex"><b style="font-size:12.5px;" id="progressLabel">Wochenziel</b><span class="sub" id="progressCount">0/0</span></div>
+          <div class="progresstrack"><div class="progressfill" id="progressFill"></div></div>
+        </div>
+      </div>
+    </div>
 
     <div class="daystrip" id="daystrip"></div>
 
@@ -368,6 +476,8 @@ const HL = {
 };
 function bodySvg(hl){ return `<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">${BASE}${HL[hl]||''}</svg>`; }
 function ytLink(q){ return `https://www.youtube.com/results?search_query=${encodeURIComponent(q + ' Übung Technik Anleitung')}`; }
+const MUSCLE_ICON = { chest:'🎯', shoulders:'🔺', upperback:'🛡️', reardelt:'🛡️', biceps:'💪', triceps:'💪', core:'🧱' };
+function iconFor(hl){ return MUSCLE_ICON[hl] || '🏋️'; }
 
 const exercises = [
   {name:'Brustpresse Maschine', group:'Brust', hl:'chest', unit:'A',
@@ -470,9 +580,10 @@ function fmtIngredient(item, qty, unit){
   if(unit==='Stk') return `${qty} ${item}`;
   return `${qty} ${unit} ${item}`;
 }
-function showRecipeDetail(recipe, scaledCarbQty){
+function showRecipeDetail(recipe, scaledCarbQty, icon){
+  icon = icon || '🍽️';
   if(recipe.freeform){
-    openDetail(`<div class="card"><h2>${recipe.name}</h2><p>${recipe.note}</p></div>`);
+    openDetail(`<div class="card"><div class="exCard"><span class="medallion">${icon}</span><h2 style="margin:0;">${recipe.name}</h2></div><p style="margin-top:10px;">${recipe.note}</p></div>`);
     return;
   }
   const lines = [];
@@ -480,7 +591,7 @@ function showRecipeDetail(recipe, scaledCarbQty){
   recipe.extra.forEach(e=>lines.push(fmtIngredient(e.item, e.qty, e.unit)));
   openDetail(`
     <div class="card">
-      <h2>${recipe.name}</h2>
+      <div class="exCard"><span class="medallion">${icon}</span><h2 style="margin:0;">${recipe.name}</h2></div>
       <h3>Zutaten (roh/ungekocht gewogen)</h3>
       <ul class="steps">${lines.map(l=>`<li>${l}</li>`).join('')}</ul>
       <h3>Zubereitung</h3>
@@ -737,8 +848,36 @@ function renderDayStrip(){
 }
 
 /* ---------- Render: today/selected day ---------- */
+function celebrate(text){
+  const el = document.getElementById('celebrate');
+  document.getElementById('celebrateText').textContent = text;
+  el.classList.remove('show');
+  void el.offsetWidth; // restart animation
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 1500);
+}
+
+function computeStreak(){
+  const qualifies = k => { const dl = days[k]; return dl && (dl.strengthDone || (dl.km||0)>0 || dl.rest); };
+  let streak = qualifies(TODAY_KEY) ? 1 : 0;
+  let cursor = addDays(TODAY, -1);
+  while(qualifies(keyOf(cursor))){ streak++; cursor = addDays(cursor, -1); }
+  return streak;
+}
+
+function renderStreak(){
+  const streak = computeStreak();
+  document.getElementById('streakNum').textContent = streak;
+  document.getElementById('streakFlame').classList.toggle('lit', streak >= 3);
+  document.getElementById('streakFlame').style.opacity = streak > 0 ? '1' : '.35';
+  const sessionsWeek = sessionsInTrailingWeek(TODAY_KEY);
+  document.getElementById('progressCount').textContent = `${sessionsWeek}/${profile.target}`;
+  document.getElementById('progressFill').style.width = Math.min(100, (sessionsWeek/profile.target)*100) + '%';
+}
+
 function renderToday(){
   renderDayStrip();
+  renderStreak();
   const key = selectedKey;
   const day = getDay(key);
   const isToday = key===TODAY_KEY;
@@ -781,7 +920,7 @@ function renderToday(){
       strengthContent.innerHTML = `<p class="sub">${reason}</p>`;
     } else {
       const unit = nextUnitFor(key);
-      const longLayoff = !startedToday && sinceLast >= 14;
+      const longLayoff = !startedToday && Number.isFinite(sinceLast) && sinceLast >= 14;
       const wk = longLayoff ? 0 : cycleWeekFor(key);
       const list = exercisesFor(unit);
       const requiredNames = list.filter(e=>e.unit===unit).map(e=>e.name);
@@ -797,17 +936,20 @@ function renderToday(){
         <ul class="exlist">${list.map((e,i)=>`
           <li class="exrow">
             <input type="checkbox" id="exdone_${i}" ${day.exDone[e.name]?'checked':''}>
+            <span class="exicon">${iconFor(e.hl)}</span>
             <span class="exname" data-i="${i}">${e.name}${e.unit==='A/B'?' <small>(optional)</small>':`<small>${PROGRESSION[wk].sets}×${PROGRESSION[wk].reps}</small>`}</span>
             <span class="chev">›</span>
           </li>`).join('')}</ul>
         <p class="sub" style="margin-top:8px;">Tippe auf eine Übung für Ausführung, Video und Gewichtswahl. Häkchen setzen, sobald du sie im Studio gemacht hast.</p>`;
       list.forEach((e,i)=>{
         document.getElementById('exdone_'+i).onchange = (ev)=>{
+          const wasDone = day.strengthDone;
           day.exDone[e.name] = ev.target.checked;
           const allRequiredDone = requiredNames.every(n=>day.exDone[n]);
           day.strengthDone = allRequiredDone;
           day.unit = allRequiredDone ? unit : null;
           saveDays(); renderToday();
+          if(allRequiredDone && !wasDone) celebrate(`Einheit ${unit} geschafft! 🔥`);
         };
       });
       strengthContent.querySelectorAll('.exname').forEach(el=>{
@@ -830,26 +972,19 @@ function renderToday(){
   const lunchQty = lunch.carb ? scaledQty(lunch.carb.base) : null;
   const dinnerQty = dinner.carb ? scaledQty(dinner.carb.base) : null;
 
-  function teaserFor(recipe, qty){
-    if(recipe.freeform) return recipe.note;
-    const parts = [];
-    if(recipe.carb) parts.push(fmtIngredient(recipe.carb.item, qty ?? recipe.carb.base, recipe.carb.unit));
-    parts.push(recipe.extra.map(e=>e.item).join(', '));
-    return parts.join(' + ');
-  }
-
   const mealDefs = [
-    {key:'breakfast', label:'Frühstück – ' + BREAKFAST.name, recipe:BREAKFAST, qty:null},
-    {key:'lunch', label:'Mittag (vorbereitet) – ' + lunch.name, recipe:lunch, qty:lunchQty},
-    {key:'shake', label:'Post-Workout Shake', recipe:SHAKE, qty:null, onlyIfTraining:true},
-    {key:'snack', label:'Snack – ' + SNACK.name, recipe:SNACK, qty:null},
-    {key:'dinner', label:'Abend – ' + dinner.name, recipe:dinner, qty:dinnerQty}
+    {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, qty:null},
+    {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, qty:lunchQty},
+    {key:'shake', type:'Post-Workout', icon:'🥤', recipe:SHAKE, qty:null, onlyIfTraining:true},
+    {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, qty:null},
+    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, qty:dinnerQty}
   ].filter(m => !m.onlyIfTraining || strengthTodayForMacros || day.strengthDone);
 
   document.getElementById('mealList').innerHTML = mealDefs.map(m=>`
     <div class="exrow">
       <input type="checkbox" id="meal_${m.key}" ${day.meals[m.key]?'checked':''}>
-      <span class="exname" data-key="${m.key}">${m.label}<small>${teaserFor(m.recipe, m.qty)}</small></span>
+      <span class="exicon">${m.icon}</span>
+      <span class="exname" data-key="${m.key}">${m.recipe.name}<small>${m.type}</small></span>
       <span class="chev">›</span>
     </div>`).join('');
   mealDefs.forEach(m=>{
@@ -858,7 +993,7 @@ function renderToday(){
   document.getElementById('mealList').querySelectorAll('.exname').forEach(el=>{
     el.addEventListener('click', ()=>{
       const m = mealDefs.find(x=>x.key===el.dataset.key);
-      showRecipeDetail(m.recipe, m.qty);
+      showRecipeDetail(m.recipe, m.qty, m.icon);
     });
   });
 }
