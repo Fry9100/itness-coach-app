@@ -874,7 +874,8 @@ function computeMacros(km, elev, strengthToday){
   const bikeKcal = (km||0)*30 + (elev||0)*profile.weight*0.01;
   const strengthKcal = strengthToday ? 300 : 0;
   const maint = neat + bikeKcal + strengthKcal;
-  const target = Math.max(maint - profile.deficit, bmr*1.1);
+  const safetyFloor = Math.max(1500, bmr*0.9);
+  const target = Math.max(maint - profile.deficit, safetyFloor);
   const proteinG = profile.weight*2.2;
   const fatG = profile.weight*0.9;
   const carbKcal = Math.max(target - proteinG*4 - fatG*9, 0);
