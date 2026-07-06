@@ -278,12 +278,15 @@
 
     <div class="card" id="nutritionCard">
       <h2>🍽️ Ernährung</h2>
-      <div class="grid3">
-        <div class="stat"><b id="out_target">–</b><span>Ziel kcal heute</span></div>
-        <div class="stat"><b id="out_protein">–</b><span>Protein g</span></div>
-        <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
+      <div id="nutritionRestNote"></div>
+      <div id="nutritionTracking">
+        <div class="grid3">
+          <div class="stat"><b id="out_target">–</b><span>Ziel kcal heute</span></div>
+          <div class="stat"><b id="out_protein">–</b><span>Protein g</span></div>
+          <div class="stat"><b id="out_carbs">–</b><span>KH g</span></div>
+        </div>
+        <div id="mealList" style="margin-top:6px;"></div>
       </div>
-      <div id="mealList" style="margin-top:6px;"></div>
       <button class="pill secondary" style="margin-top:12px;" onclick="showShoppingList()">🛒 Einkaufsliste bis Sonntag</button>
     </div>
 
@@ -538,8 +541,17 @@ const exercises = [
 ];
 function exercisesFor(unit){ return exercises.filter(e => e.unit===unit || e.unit==='A/B'); }
 
-/* ---------- Generische Detailseite (Übung / Rezept / Einkaufsliste), aus Heute anspringbar ---------- */
+/* ---------- Generische Detailseite (Übung / Rezept / Einkaufsliste), aus Heute oder Übungen anspringbar ---------- */
+const VIEW_META = {
+  today:{title:'Heute', sub:'Dein persönlicher Trainings- & Ernährungscoach'},
+  review:{title:'Rückblick', sub:'Deine Woche im Überblick'},
+  exercises:{title:'Übungen', sub:'Ausführung, Bilder & Videos'},
+  more:{title:'Mehr', sub:'Profil, Prinzipien & Supplements'}
+};
+let returnView = 'today';
 function openDetail(html){
+  const current = document.querySelector('section.view.active');
+  if(current && current.id !== 'view-detail') returnView = current.id.replace('view-','');
   document.getElementById('detailContent').innerHTML = html;
   document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-detail').classList.add('active');
@@ -547,7 +559,11 @@ function openDetail(html){
 }
 function closeDetail(){
   document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-today').classList.add('active');
+  document.getElementById('view-'+returnView).classList.add('active');
+  document.querySelectorAll('nav.tabbar .tab').forEach(b=>b.classList.toggle('active', b.dataset.view===returnView));
+  const meta = VIEW_META[returnView] || VIEW_META.today;
+  document.getElementById('pageTitle').textContent = meta.title;
+  document.getElementById('pageSub').textContent = meta.sub;
   window.scrollTo(0,0);
 }
 function showExerciseDetail(name){
@@ -690,28 +706,25 @@ const PROGRESSION = [
   {sets:2, reps:'12–15', rpe:'5',   label:'Deload – bewusst leicht'}
 ];
 
-document.getElementById('exerciseCards').innerHTML = exercises.map(ex => `
-  <div class="card">
-    <div class="exCard">
-      ${bodySvg(ex.hl)}
-      <div style="flex:1;min-width:0;">
-        <div class="rowflex">
-          <h2 style="margin:0;">${ex.name}</h2>
-          <span class="badge ${ex.unit==='A'?'accent':(ex.unit==='B'?'accent2':'')}">${ex.unit}</span>
-        </div>
-        <span class="badge">${ex.group}</span>
-        <p style="margin-top:8px;">${ex.desc}</p>
-      </div>
-    </div>
-    <h3>Ausführung</h3>
-    <ul class="steps">${ex.steps.map(s=>`<li>${s}</li>`).join('')}</ul>
-    <h3>Häufiger Fehler</h3>
-    <p>${ex.mistake}</p>
-    <h3>Welches Gewicht wählen?</h3>
-    <p>${ex.weightTip}</p>
-    <a class="ytbtn" href="${ytLink(ex.name)}" target="_blank" rel="noopener">▶ Video-Anleitungen auf YouTube suchen</a>
-  </div>
-`).join('');
+function renderExerciseList(unit, title){
+  const list = exercises.filter(e=>e.unit===unit || e.unit==='A/B');
+  return `
+    <div class="card">
+      <h3 style="margin-top:0;">${title}</h3>
+      <ul class="exlist">${list.map(ex=>`
+        <li class="exrow">
+          <span class="exicon">${iconFor(ex.hl)}</span>
+          <span class="exname" data-name="${ex.name}">${ex.name}<small>${ex.group}</small></span>
+          <span class="chev">›</span>
+        </li>`).join('')}</ul>
+    </div>`;
+}
+document.getElementById('exerciseCards').innerHTML =
+  renderExerciseList('A', 'Einheit A · Brust-Fokus') +
+  renderExerciseList('B', 'Einheit B · Rücken-Fokus');
+document.getElementById('exerciseCards').querySelectorAll('.exname').forEach(el=>{
+  el.addEventListener('click', ()=>showExerciseDetail(el.dataset.name));
+});
 
 /* ---------- Rezept-Datenbank (Mittag/Abend je Wochentag, plus fixe Mahlzeiten) ---------- */
 const BREAKFAST = { name:'Skyr-Porridge', ingredients:null,
@@ -962,6 +975,16 @@ function renderToday(){
   }
 
   // Ernährung
+  const restNote = document.getElementById('nutritionRestNote');
+  const trackingBlock = document.getElementById('nutritionTracking');
+  if(day.rest){
+    restNote.innerHTML = `<p class="sub">Cheatday – heute wird keine Ernährung getrackt und nichts zum Abhaken vorgeschlagen. Die Einkaufsliste unten bleibt trotzdem nutzbar.</p>`;
+    trackingBlock.style.display = 'none';
+    return;
+  }
+  restNote.innerHTML = '';
+  trackingBlock.style.display = '';
+
   const strengthTodayForMacros = day.strengthDone || (!day.rest && !bigRide && daysSinceLastSession(key)>=2 && sessionsInTrailingWeek(key)<profile.target);
   const macros = computeMacros(day.km, day.elev, strengthTodayForMacros);
   document.getElementById('out_target').textContent = Math.round(macros.target);
