@@ -199,7 +199,7 @@
         <div><label>Gewicht (kg)</label><input type="number" id="in_weight" value="80"></div>
         <div><label>Größe (cm)</label><input type="number" id="in_height" value="175"></div>
         <div><label>Alter (Jahre)</label><input type="number" id="in_age" value="35"></div>
-        <div><label>Ziel-Einheiten/Woche</label><input type="number" id="in_target" value="3"></div>
+        <div><label>Ziel-Einheiten/Woche</label><input type="number" id="in_target" value="4"></div>
       </div>
       <label>Kaloriendefizit pro Tag (kcal)</label>
       <input type="number" id="in_deficit" value="300">
@@ -213,13 +213,14 @@
         <li>Verpasst/markierst du einen Tag als Ruhetag, verschiebt sich die fällige Einheit automatisch auf den nächsten passenden Tag – kein Aufholen mit Doppel-Einheiten am selben Tag, das wäre für die Regeneration ungünstig.</li>
         <li>An Tagen mit großer Radausfahrt (≥70&nbsp;km oder ≥800&nbsp;Hm) schlägt die App bewusst kein zusätzliches Krafttraining vor – Erholung hat Vorrang, die Einheit folgt automatisch am nächsten passenden Tag.</li>
         <li>Alle 3 absolvierten Einheiten steigt die Woche im 4-Wochen-Progressionsblock (Sätze/Wdh./Gewicht), unabhängig vom Kalenderdatum – die App merkt sich das an deinem tatsächlichen Fortschritt, nicht am Wochentag.</li>
+        <li><b>Priorität Brust &gt; Rücken &gt; Arme:</b> Einheit A trainiert Brust mit 3 Übungen zuerst (frisch, meiste Kraft), dann 1 Rücken- und 1 Schulterübung, Arme zuletzt. Einheit B ist dein Rücken-Schwerpunkt, trifft über die Dip-Maschine aber auch nochmal die Brust mit. So bekommt die Brust in jeder Einheit Reize, Rücken solide Arbeit, Arme laufen bewusst nur als Ergänzung mit.</li>
       </ul>
     </div>
 
     <div class="card">
       <h2>Ernährungsprinzipien</h2>
       <ul class="steps">
-        <li><b>Protein zuerst:</b> ca. 2&nbsp;g/kg Körpergewicht/Tag, auf 4–5 Mahlzeiten verteilt.</li>
+        <li><b>Protein zuerst:</b> ca. 2,2&nbsp;g/kg Körpergewicht/Tag (etwas höher als der übliche Richtwert, wegen deines hohen Gesamt-Trainingsumfangs aus Rad + Kraft), auf 4–5 Mahlzeiten verteilt.</li>
         <li><b>Kohlenhydrate nach Radlast:</b> je mehr km/Höhenmeter du heute einträgst, desto mehr Reis/Kartoffeln empfiehlt dir die App automatisch.</li>
         <li><b>Moderates Kaloriendefizit</b> statt Crash-Diät, damit eher Fett statt Muskeln verloren geht.</li>
         <li>Gemüse zu jeder Hauptmahlzeit, mind. 3&nbsp;Liter trinken, Alkohol nur gelegentlich.</li>
@@ -305,7 +306,7 @@ const TODAY_KEY = keyOf(TODAY);
 let selectedKey = TODAY_KEY;
 
 /* ---------- Profile ---------- */
-const profile = Object.assign({ weight:80, height:175, age:35, target:3, deficit:300 }, loadJSON('profile', {}));
+const profile = Object.assign({ weight:80, height:175, age:35, target:4, deficit:300 }, loadJSON('profile', {}));
 function saveProfile(){
   profile.weight = parseFloat(document.getElementById('in_weight').value)||profile.weight;
   profile.height = parseFloat(document.getElementById('in_height').value)||profile.height;
@@ -356,21 +357,26 @@ const exercises = [
    steps:['Sitzhöhe so einstellen, dass Griffe auf Brusthöhe sind.','Rücken fest an die Lehne, Füße flach am Boden.','Griffe nach vorne drücken, bis Arme fast gestreckt sind (Ellbogen nicht komplett durchdrücken).','Kontrolliert zurück in die Ausgangsposition.'],
    mistake:'Nicht mit Schwung aus dem Rücken drücken – Bewegung kommt aus Brust/Armen.',
    weightTip:'Starte am leichtesten Steckgewicht bzw. 2.–3. Loch von unten. Fallen dir 12–15 Wiederholungen locker, in der nächsten Einheit eine Stufe (meist 5 kg) höher.'},
-  {name:'Schulterpresse Maschine', group:'Schultern', hl:'shoulders', unit:'A',
-   desc:'Kräftigt die vordere/seitliche Schulter und stützt Brust-Übungen.',
-   steps:['Sitzhöhe so, dass Griffe auf Schulterhöhe starten.','Griffe nach oben drücken bis Arme fast gestreckt.','Langsam kontrolliert absenken.'],
-   mistake:'Kein Hohlkreuz machen – Rücken bleibt an der Lehne.',
-   weightTip:'Die Schulter ist empfindlicher als die Brust – lieber eine Stufe zu leicht als zu schwer starten. Gleiche Steigerungslogik: locker geschafft → nächstes Mal eine Stufe höher.'},
-  {name:'Latzug breiter Griff', group:'Rücken', hl:'upperback', unit:'A',
-   desc:'Zieht die Stange von oben zur Brust, trainiert v.a. den seitlichen Rücken (Lat).',
-   steps:['Breiten Griff wählen, Oberschenkel unter die Polster.','Stange zur oberen Brust ziehen, Brust raus, leicht zurücklehnen.','Schulterblätter dabei bewusst nach unten/zusammenziehen.','Langsam wieder nach oben führen, Arme fast strecken.'],
-   mistake:'Nicht hinter den Nacken ziehen – das belastet die Schulter unnötig.',
-   weightTip:'Oft reicht anfangs schon ein geringer Teil des Gewichtsstapels (z. B. 20–30 kg). Sind die letzten Wiederholungen der letzten Serie noch locker, eine Stufe höher gehen.'},
+  {name:'Schrägbankpresse Maschine', group:'Brust (oberer Teil)', hl:'chest', unit:'A',
+   desc:'Wie Brustpresse, aber mit Neigung nach oben – betont den oberen Brustmuskel, der bei "Männerbrust" optisch besonders wichtig ist.',
+   steps:['Falls Schräg-Variante nicht vorhanden: normale Brustpresse mit Griffen etwas höher ansetzen.','Rücken fest an Lehne, Griffe schräg nach oben drücken.','Kontrolliert zurückführen.'],
+   mistake:'Zu starke Neigung nimmt Belastung von der Brust auf die Schulter.',
+   weightTip:'Meist etwas weniger Gewicht möglich als bei der normalen Brustpresse – eine Stufe niedriger starten und von dort steigern.'},
   {name:'Butterfly / Pec Deck', group:'Brust', hl:'chest', unit:'A',
    desc:'Isolationsübung für die Brust, Arme bewegen sich wie beim "Umarmen".',
    steps:['Rücken an die Lehne, Polster/Griffe auf Brusthöhe.','Arme in einer großen Kreisbewegung vor der Brust zusammenführen.','Kurz zusammendrücken, dann langsam wieder öffnen.'],
    mistake:'Nicht zu weit nach hinten öffnen, wenn die Schulter zieht – Bewegungsradius reduzieren.',
    weightTip:'Kleiner, isolierter Muskelbereich – bewusst leicht starten (unterste 1–2 Stufen). Bei zu viel Gewicht ist hier die Verletzungsgefahr höher als bei der Brustpresse.'},
+  {name:'Latzug breiter Griff', group:'Rücken', hl:'upperback', unit:'A',
+   desc:'Zieht die Stange von oben zur Brust, trainiert v.a. den seitlichen Rücken (Lat).',
+   steps:['Breiten Griff wählen, Oberschenkel unter die Polster.','Stange zur oberen Brust ziehen, Brust raus, leicht zurücklehnen.','Schulterblätter dabei bewusst nach unten/zusammenziehen.','Langsam wieder nach oben führen, Arme fast strecken.'],
+   mistake:'Nicht hinter den Nacken ziehen – das belastet die Schulter unnötig.',
+   weightTip:'Oft reicht anfangs schon ein geringer Teil des Gewichtsstapels (z. B. 20–30 kg). Sind die letzten Wiederholungen der letzten Serie noch locker, eine Stufe höher gehen.'},
+  {name:'Schulterpresse Maschine', group:'Schultern', hl:'shoulders', unit:'A',
+   desc:'Kräftigt die vordere/seitliche Schulter und stützt Brust-Übungen.',
+   steps:['Sitzhöhe so, dass Griffe auf Schulterhöhe starten.','Griffe nach oben drücken bis Arme fast gestreckt.','Langsam kontrolliert absenken.'],
+   mistake:'Kein Hohlkreuz machen – Rücken bleibt an der Lehne.',
+   weightTip:'Die Schulter ist empfindlicher als die Brust – lieber eine Stufe zu leicht als zu schwer starten. Gleiche Steigerungslogik: locker geschafft → nächstes Mal eine Stufe höher.'},
   {name:'Trizepsdrücken Kabelzug', group:'Arme (Trizeps)', hl:'triceps', unit:'A',
    desc:'Isolationsübung für den Trizeps (Oberarmrückseite) am hohen Kabelzug.',
    steps:['Griff/Seil am hohen Kabelzug greifen, Ellbogen eng am Körper.','Griff nach unten drücken bis Arme gestreckt sind.','Langsam wieder hochführen, Ellbogen bleiben fixiert.'],
@@ -381,18 +387,13 @@ const exercises = [
    steps:['Aufrecht sitzen, leichte Beugung in den Knien, Griff mit beiden Händen fassen.','Griff zum unteren Bauch/Bauchnabel ziehen, Ellbogen nah am Körper.','Schulterblätter zusammenziehen, kurz halten.','Kontrolliert zurückführen, Arme fast strecken.'],
    mistake:'Nicht mit dem Oberkörper nach hinten schaukeln – Rücken bleibt stabil.',
    weightTip:'Ähnlich wie beim Latzug: mittlere Stufe testen, dann nach Gefühl anpassen (letzte 2–3 Wiederholungen der letzten Serie anstrengend, aber sauber).'},
-  {name:'Schrägbankpresse Maschine', group:'Brust (oberer Teil)', hl:'chest', unit:'B',
-   desc:'Wie Brustpresse, aber mit Neigung nach oben – betont den oberen Brustmuskel.',
-   steps:['Falls Schräg-Variante nicht vorhanden: normale Brustpresse mit Griffen etwas höher ansetzen.','Rücken fest an Lehne, Griffe schräg nach oben drücken.','Kontrolliert zurückführen.'],
-   mistake:'Zu starke Neigung nimmt Belastung von der Brust auf die Schulter.',
-   weightTip:'Meist etwas weniger Gewicht möglich als bei der normalen Brustpresse – eine Stufe niedriger starten und von dort steigern.'},
   {name:'Reverse Butterfly (Rear Delt)', group:'Rücken/hintere Schulter', hl:'reardelt', unit:'B',
    desc:'Pec Deck rückwärts benutzt – kräftigt hintere Schulter und oberen Rücken, wichtig für Haltung.',
    steps:['Brust an das Polster lehnen (Blick zur Maschine).','Griffe seitlich mit leicht gebeugten Armen nach hinten ziehen.','Schulterblätter zusammenziehen, kurz halten, langsam zurück.'],
    mistake:'Nicht mit viel Gewicht arbeiten – diese Muskeln sind klein, Technik zählt mehr als Gewicht.',
    weightTip:'Unterste Gewichtsstufe wählen, Ego zuhause lassen. Lieber 15 saubere Wiederholungen als 8 mit Schwung.'},
   {name:'Dip-Maschine (assistiert)', group:'Brust/Trizeps', hl:'triceps', unit:'B',
-   desc:'Assistierte Dip-Maschine gleicht einen Teil des Körpergewichts aus – gute Anfänger-Variante für Dips.',
+   desc:'Assistierte Dip-Maschine gleicht einen Teil des Körpergewichts aus – gute Anfänger-Variante für Dips. Trifft die Brust ein zweites Mal in dieser Woche mit.',
    steps:['Gegengewicht so einstellen, dass 8–12 saubere Wiederholungen möglich sind.','Knie auf die Plattform, Griffe fassen, Oberkörper leicht vorgebeugt für mehr Brustbeteiligung.','Nach unten absenken bis Oberarm ca. parallel zum Boden, dann hochdrücken.'],
    mistake:'Nicht zu tief absenken, wenn die Schulter vorne zieht.',
    weightTip:'Achtung, hier ist es umgekehrt: mehr eingestelltes Gegengewicht = leichter (die Maschine unterstützt dich stärker). Starte mit hoher Unterstützung (z. B. 40–50 kg) und reduziere sie schrittweise, sobald 10–12 Wiederholungen leicht fallen.'},
@@ -690,7 +691,7 @@ function computeMacros(km, elev, strengthToday){
   const strengthKcal = strengthToday ? 300 : 0;
   const maint = neat + bikeKcal + strengthKcal;
   const target = Math.max(maint - profile.deficit, bmr*1.1);
-  const proteinG = profile.weight*2;
+  const proteinG = profile.weight*2.2;
   const fatG = profile.weight*0.9;
   const carbKcal = Math.max(target - proteinG*4 - fatG*9, 0);
   const carbG = carbKcal/4;
