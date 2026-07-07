@@ -486,10 +486,11 @@ function saveProfile(){
 /* ---------- Day log storage ---------- */
 let days = loadJSON('days', {});
 function getDay(key){
-  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{}, exWeights:{} };
+  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{}, exWeights:{}, mealScaleUsed:{} };
   if(!days[key].exDone) days[key].exDone = {};
   if(!days[key].exWeights) days[key].exWeights = {};
   if(!days[key].meals || Array.isArray(days[key].meals)) days[key].meals = {};
+  if(!days[key].mealScaleUsed) days[key].mealScaleUsed = {};
   return days[key];
 }
 function lastWeightFor(name, beforeKey){
@@ -713,13 +714,28 @@ function showShoppingList(){
     const dinner = DINNERS[wIdx];
     const dayTraining = !!(dayLog && (dayLog.strengthDone || Object.values(dayLog.exDone||{}).some(v=>v)));
     const macrosForDay = computeMacros(dayLog?dayLog.km:0, dayLog?dayLog.elev:0, dayTraining);
-    const { scoops: dayScoops, scale: dayScale } = planMealScale(macrosForDay.target, lunch, dinner, dayTraining ? 1 : 0);
+    const scaleUsed = (first && dayLog && dayLog.mealScaleUsed) || {};
+    const lunchLockedForDay = !!(doneMeals.lunch && scaleUsed.lunch != null);
+    const dinnerLockedForDay = !!(doneMeals.dinner && scaleUsed.dinner != null);
+    let lunchScaleForDay, dinnerScaleForDay, dayScoops;
+    if(!lunchLockedForDay && !dinnerLockedForDay){
+      ({ scoops: dayScoops, scale: lunchScaleForDay } = planMealScale(macrosForDay.target, lunch, dinner, dayTraining ? 1 : 0));
+      dinnerScaleForDay = lunchScaleForDay;
+    } else if(lunchLockedForDay && !dinnerLockedForDay){
+      lunchScaleForDay = scaleUsed.lunch;
+      ({ scoops: dayScoops, scale: dinnerScaleForDay } = planMealScaleSingle(macrosForDay.target - lunch.kcalBase*lunchScaleForDay, dinner, dayTraining ? 1 : 0));
+    } else if(dinnerLockedForDay && !lunchLockedForDay){
+      dinnerScaleForDay = scaleUsed.dinner;
+      ({ scoops: dayScoops, scale: lunchScaleForDay } = planMealScaleSingle(macrosForDay.target - dinner.kcalBase*dinnerScaleForDay, lunch, dayTraining ? 1 : 0));
+    } else {
+      lunchScaleForDay = scaleUsed.lunch; dinnerScaleForDay = scaleUsed.dinner; dayScoops = dayTraining ? 1 : 0;
+    }
     if(!doneMeals.shake) wheyScoopsTotal += dayScoops;
 
     if(!doneMeals.breakfast) addRecipe(BREAKFAST, 1);
-    if(!doneMeals.lunch) addRecipe(lunch, dayScale);
+    if(!doneMeals.lunch) addRecipe(lunch, lunchScaleForDay);
     if(!doneMeals.snack) addRecipe(SNACK, 1);
-    if(!doneMeals.dinner) addRecipe(dinner, dayScale);
+    if(!doneMeals.dinner) addRecipe(dinner, dinnerScaleForDay);
     if(lunch.freeform) notes.push(`${WD_LABELS[wIdx]}: Mittag frei wählbar – nicht in der Liste enthalten.`);
     if(dinner.freeform) notes.push(`${WD_LABELS[wIdx]}: Abend frei wählbar – nicht in der Liste enthalten.`);
 
@@ -843,50 +859,54 @@ const DAILY_INTAKE = [
   {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM}
 ];
 
+/* Bewusst auf ein kleines Kern-Set reduziert: 2 Kohlenhydratquellen (Reis, Süßkartoffel) und
+   4 Proteinquellen (Tofu, Kichererbsen, Linsen, Käse/Eier) - reichen für einen Ein-Personen-Haushalt
+   völlig aus, halten den Einkauf einfach und lassen sich in großen Mengen vorkochen. Abwechslung
+   entsteht über Gemüse/Gewürze/Soßen, nicht über ständig wechselnde Grundzutaten. */
 const LUNCHES = [
   { name:'Tofu-Reis-Bowl mit Gemüse', kcalBase:930, proteinBase:36, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Karotten)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend (oder auf Vorrat am Wochenende) zubereiten: Reis kochen, Tofu würfeln und in Öl knusprig anbraten, Gemüse 5 Min. mitbraten, mit Sojasauce abschmecken.','Alles in eine Lunchbox füllen, im Kühlschrank lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
-  { name:'Linsen-Nudeln mit Gemüse', kcalBase:420, proteinBase:26, carb:{item:'Linsennudeln (roh)', base:80, unit:'g'},
-    extra:[{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Passierte Tomaten', qty:100, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
-    steps:['Am Vorabend zubereiten: Nudeln kochen, Gemüse in Öl anbraten, passierte Tomaten dazugeben, 5–10 Min. köcheln, mit den Nudeln vermengen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit in der Mikrowelle aufwärmen (2–3 Min.) oder kalt essen.'] },
-  { name:'Kichererbsen-Reis-Bowl', kcalBase:925, proteinBase:27, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
-    extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'},{item:'Joghurt-Dressing', qty:1, unit:'EL'}],
-    steps:['Am Vorabend zubereiten: Reis kochen, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Salat/Gemüse in eine Lunchbox schichten, Dressing separat mitnehmen.','In der Arbeit den warmen Teil in der Mikrowelle aufwärmen, Salat kalt dazu, Dressing erst kurz vorher drüber.'] },
-  { name:'Halloumi-Nudelsalat', kcalBase:755, proteinBase:39, carb:{item:'Nudeln (roh)', base:80, unit:'g'},
-    extra:[{item:'Halloumi', qty:125, unit:'g'},{item:'Cherrytomaten/Gurke', qty:150, unit:'g'},{item:'Olivenöl', qty:1, unit:'TL'}],
-    steps:['Am Vorabend zubereiten: Nudeln kochen und abkühlen lassen, Halloumi in Scheiben goldbraun braten.','Mit Gemüse und Öl vermengen, in eine Lunchbox füllen, kühl lagern.','Schmeckt kalt – einfach mit zur Arbeit nehmen, kein Aufwärmen nötig.'] },
-  { name:'Veggie-Geschnetzeltes (Soja) + Reis', kcalBase:915, proteinBase:43, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
-    extra:[{item:'Soja-Geschnetzeltes', qty:150, unit:'g'},{item:'Gemüse (Paprika/Zwiebel)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
-    steps:['Am Vorabend zubereiten: Reis kochen, Soja-Geschnetzeltes anbraten, Gemüse dazugeben, mit Sojasauce würzen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen.'] },
-  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:940, proteinBase:32, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Linsen-Reis-Bowl mit Gemüse', kcalBase:900, proteinBase:34, carb:{item:'Reis (roh gewogen)', base:140, unit:'g'},
+    extra:[{item:'Linsen (roh)', qty:80, unit:'g'},{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Am Vorabend zubereiten: Reis und Linsen getrennt kochen (Linsen ca. 20 Min.), Gemüse in Öl anbraten, alles mit Sojasauce vermengen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
+  { name:'Kichererbsen-Reis-Bowl', kcalBase:905, proteinBase:27, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+    extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'}],
+    steps:['Am Vorabend zubereiten: Reis kochen, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Salat/Gemüse in eine Lunchbox schichten.','In der Arbeit den warmen Teil in der Mikrowelle aufwärmen, Salat kalt dazu.'] },
+  { name:'Tofu-Süßkartoffel-Bowl mit Gemüse', kcalBase:535, proteinBase:28, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+    extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse gemischt (z. B. Brokkoli, Paprika)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Am Vorabend zubereiten: Süßkartoffel würfeln und rösten oder kochen, Tofu würfeln und in Öl anbraten, Gemüse mitbraten, mit Sojasauce würzen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
+  { name:'Kichererbsen-Süßkartoffel-Bowl', kcalBase:550, proteinBase:19, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+    extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Gemüse gemischt', qty:150, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Am Vorabend zubereiten: Süßkartoffel würfeln und rösten, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Gemüse in eine Lunchbox füllen, kühl lagern.','In der Arbeit in der Mikrowelle aufwärmen (oder kalt genießen).'] },
+  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:830, proteinBase:29, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Paprika, groß (zum Füllen)', qty:2, unit:'Stk'},{item:'Käse gerieben', qty:60, unit:'g'},{item:'Passierte Tomaten', qty:150, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'}],
     steps:['Reis halb gar vorkochen.','Paprika halbieren, entkernen, mit Reis, kleingeschnittener Zwiebel und etwas passierter Tomate füllen.','Mit Käse bestreuen, bei 200°C ca. 25–30 Min. backen.','Heiß servieren – am Wochenende Zeit für frisches Kochen statt Meal Prep.'] },
-  { name:'Veganes Chili sin Carne mit Reis', kcalBase:1085, proteinBase:40, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
-    extra:[{item:'Kidneybohnen (Dose, abgetropft)', qty:240, unit:'g'},{item:'Mais (Dose, abgetropft)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Paprika', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Chilipulver', qty:1, unit:'TL'}],
-    steps:['Zwiebel und Paprika klein schneiden, kurz anbraten.','Bohnen, Mais und passierte Tomaten dazugeben, mit Chilipulver 15–20 Min. köcheln.','Reis parallel kochen.','Ruhig eine größere Menge kochen und 2–3 Portionen für die kommende Woche kühl/eingefroren aufheben – guter Meal-Prep-Start in die Woche.'] }
+  { name:'Kichererbsen-Chili mit Reis', kcalBase:1050, proteinBase:35, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+    extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:240, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Paprika', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Chilipulver', qty:1, unit:'TL'}],
+    steps:['Zwiebel und Paprika klein schneiden, kurz anbraten.','Kichererbsen und passierte Tomaten dazugeben, mit Chilipulver 15–20 Min. köcheln.','Reis parallel kochen.','Ruhig eine größere Menge kochen und 2–3 Portionen für die kommende Woche kühl/eingefroren aufheben – guter Meal-Prep-Start in die Woche.'] }
 ];
 
 const DINNERS = [
-  { name:'Bohnen-Käse-Auflauf + Ofengemüse', kcalBase:635, proteinBase:34, carb:{item:'Ofengemüse (z. B. Zucchini, Paprika, Süßkartoffel)', base:250, unit:'g'},
-    extra:[{item:'Weiße Bohnen (Dose, abgetropft)', qty:200, unit:'g'},{item:'Käse gerieben', qty:50, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
-    steps:['Ofen auf 200°C vorheizen.','Gemüse in Stücke schneiden, mit Öl vermengen, 20–25 Min. rösten.','Bohnen in eine Auflaufform, mit Käse bestreuen, letzte 10 Min. mit in den Ofen.','Zusammen servieren.'] },
-  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', kcalBase:590, proteinBase:38, carb:null,
+  { name:'Kichererbsen-Käse-Auflauf mit Süßkartoffel', kcalBase:755, proteinBase:33, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+    extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:200, unit:'g'},{item:'Käse gerieben', qty:50, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Ofen auf 200°C vorheizen.','Süßkartoffel würfeln, mit Öl vermengen, 20–25 Min. rösten.','Kichererbsen in eine Auflaufform, mit Käse bestreuen, letzte 10 Min. mit in den Ofen.','Zusammen servieren.'] },
+  { name:'Rührei (4 Eier) + Vollkornbrot + Salat', kcalBase:585, proteinBase:38, carb:null,
     extra:[{item:'Eier', qty:4, unit:'Stk'},{item:'Vollkornbrot', qty:2, unit:'Scheiben (ca. 70 g)'},{item:'Salat/Tomate', qty:100, unit:'g'},{item:'Butter/Öl', qty:1, unit:'TL'}],
     steps:['Eier verquirlen.','In der Pfanne mit Butter/Öl bei mittlerer Hitze langsam stocken lassen, dabei umrühren.','Mit Brot und Salat servieren.'] },
   { name:'Tofu-Pfanne + Süßkartoffel', kcalBase:465, proteinBase:27, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Brokkoli/Paprika)', qty:150, unit:'g'},{item:'Sojasauce', qty:1, unit:'TL'}],
     steps:['Süßkartoffel schälen, würfeln, 15–20 Min. kochen oder im Ofen rösten.','Tofu würfeln, mit Gemüse in der Pfanne anbraten.','Sojasauce dazugeben, zusammen servieren.'] },
-  { name:'Gemüse-Curry mit Tofu + Couscous', kcalBase:670, proteinBase:33, carb:{item:'Couscous (roh)', base:60, unit:'g'},
+  { name:'Gemüse-Curry mit Tofu + Reis', kcalBase:805, proteinBase:33, carb:{item:'Reis (roh gewogen)', base:100, unit:'g'},
     extra:[{item:'Tofu', qty:150, unit:'g'},{item:'Gemüse (Karotten, Erbsen, Paprika)', qty:200, unit:'g'},{item:'Kokosmilch', qty:100, unit:'ml'},{item:'Currypulver', qty:1, unit:'TL'}],
-    steps:['Couscous mit heißem Wasser aufgießen, 5 Min. quellen lassen.','Tofu und Gemüse in der Pfanne anbraten.','Currypulver und Kokosmilch dazugeben, 10 Min. köcheln.','Mit Couscous servieren.'] },
-  { name:'Käsespätzle + Ofengemüse', kcalBase:865, proteinBase:36, carb:{item:'Spätzle (roh/frisch)', base:150, unit:'g'},
-    extra:[{item:'Bergkäse gerieben', qty:60, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Ofengemüse', qty:200, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
-    steps:['Ofengemüse wie gewohnt rösten (200°C, 20–25 Min.).','Spätzle kochen.','Zwiebel in Öl goldbraun braten, Spätzle und Käse untermischen bis der Käse schmilzt.','Mit Gemüse servieren.'] },
-  { name:'Linsen-Bolognese mit Vollkornnudeln', kcalBase:780, proteinBase:41, carb:{item:'Vollkornnudeln (roh)', base:90, unit:'g'},
-    extra:[{item:'Rote Linsen (roh)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Karotte', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Olivenöl', qty:1, unit:'TL'}],
-    steps:['Zwiebel und Karotte klein schneiden, in Öl anschwitzen.','Linsen und passierte Tomaten dazugeben, mit etwas Wasser 15–20 Min. köcheln bis die Linsen weich sind.','Nudeln parallel kochen.','Mit der Linsen-Bolognese servieren.'] },
-  { name:'Leicht, z. B. Gemüsesuppe + Ei', kcalBase:290, proteinBase:22, carb:null,
+    steps:['Reis kochen.','Tofu und Gemüse in der Pfanne anbraten.','Currypulver und Kokosmilch dazugeben, 10 Min. köcheln.','Mit Reis servieren.'] },
+  { name:'Käse-Kartoffel-Auflauf mit Ofengemüse', kcalBase:570, proteinBase:24, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
+    extra:[{item:'Käse gerieben', qty:60, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Gemüse gemischt', qty:200, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Ofen auf 200°C vorheizen.','Süßkartoffel und Gemüse in Stücke schneiden, mit Öl vermengen, 20–25 Min. rösten.','Zwiebel mitrösten, letzte 10 Min. mit Käse bestreuen.','Heiß servieren.'] },
+  { name:'Linsen-Bolognese mit Reis', kcalBase:875, proteinBase:36, carb:{item:'Reis (roh gewogen)', base:100, unit:'g'},
+    extra:[{item:'Linsen (roh)', qty:100, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Karotte', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Öl', qty:1, unit:'TL'}],
+    steps:['Zwiebel und Karotte klein schneiden, in Öl anschwitzen.','Linsen und passierte Tomaten dazugeben, mit etwas Wasser 15–20 Min. köcheln bis die Linsen weich sind.','Reis parallel kochen.','Mit der Linsen-Bolognese servieren.'] },
+  { name:'Leicht, z. B. Gemüsesuppe + Ei', kcalBase:260, proteinBase:19, carb:null,
     extra:[{item:'Gemüsesuppe', qty:300, unit:'g'},{item:'Eier', qty:2, unit:'Stk'}],
     steps:['Suppe erhitzen.','Eier 8–10 Min. hart kochen, schälen.','Zusammen servieren.'] }
 ];
@@ -947,6 +967,19 @@ function planMealScale(target, lunch, dinner, baselineScoops){
     const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
     const raw = (target - fixedKcal) / (lunch.kcalBase + dinner.kcalBase);
     if(raw >= 0.5){ scoops = s; scale = Math.min(2.2, raw); } else break;
+  }
+  if(scale == null) scale = 0.5;
+  return { scoops, scale };
+}
+/* Gleiche Logik, aber für nur EINE Mahlzeit - wird gebraucht, wenn die andere (Mittag oder Abend) schon
+   abgehakt/gegessen und damit fix ist: die verbleibende Mahlzeit übernimmt dann den ganzen Rest-Bedarf,
+   statt dass die App eine bereits gegessene Mahlzeit rückwirkend größer/kleiner "umrechnet". */
+function planMealScaleSingle(target, meal, baselineScoops){
+  let scoops = baselineScoops, scale = null;
+  for(let s=baselineScoops; s<=2; s++){
+    const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
+    const raw = (target - fixedKcal) / meal.kcalBase;
+    if(raw >= 0.5){ scoops = s; scale = Math.min(2.6, raw); } else break;
   }
   if(scale == null) scale = 0.5;
   return { scoops, scale };
@@ -1157,10 +1190,35 @@ function renderToday(){
   // damit nie mehr gegessen wird als das Tagesziel vorsieht (kein Überschuss, auch nicht an ruhigen Tagen).
   // Zusätzlich werden so viele Whey-Scoops (max. 2/Tag) eingeplant, wie ohne Zielüberschreitung reinpassen,
   // damit Ernährung + Proteinpulver zusammen den täglichen Proteinbedarf abdecken.
+  // Ist Mittag oder Abend schon abgehakt (gegessen), bleibt dessen Portion fix ("eingefroren") - z.B. wenn du
+  // erst nach dem Mittagessen noch Rad fährst, landet der komplette Mehrbedarf beim Abendessen statt einer
+  // rückwirkenden (unsinnigen) Neuberechnung des schon gegessenen Mittagessens.
   const lunch = LUNCHES[wdIdx];
   const dinner = DINNERS[wdIdx];
   const isTrainingDay = strengthTodayForMacros || day.strengthDone;
-  const { scoops, scale: mealScale } = planMealScale(macros.target, lunch, dinner, isTrainingDay ? 1 : 0);
+  const baselineScoops = isTrainingDay ? 1 : 0;
+  const lunchLocked = !!(day.meals.lunch && day.mealScaleUsed.lunch != null);
+  const dinnerLocked = !!(day.meals.dinner && day.mealScaleUsed.dinner != null);
+  let lunchScale, dinnerScale, scoops;
+  if(!lunchLocked && !dinnerLocked){
+    ({ scoops, scale: lunchScale } = planMealScale(macros.target, lunch, dinner, baselineScoops));
+    dinnerScale = lunchScale;
+  } else if(lunchLocked && !dinnerLocked){
+    lunchScale = day.mealScaleUsed.lunch;
+    ({ scoops, scale: dinnerScale } = planMealScaleSingle(macros.target - lunch.kcalBase*lunchScale, dinner, baselineScoops));
+  } else if(dinnerLocked && !lunchLocked){
+    dinnerScale = day.mealScaleUsed.dinner;
+    ({ scoops, scale: lunchScale } = planMealScaleSingle(macros.target - dinner.kcalBase*dinnerScale, lunch, baselineScoops));
+  } else {
+    lunchScale = day.mealScaleUsed.lunch;
+    dinnerScale = day.mealScaleUsed.dinner;
+    const lockedKcal = lunch.kcalBase*lunchScale + dinner.kcalBase*dinnerScale;
+    scoops = baselineScoops;
+    for(let s=baselineScoops; s<=2; s++){
+      const fixedTry = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
+      if(fixedTry + lockedKcal <= macros.target) scoops = s; else break;
+    }
+  }
   const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + scoops*SHAKE.kcalBase;
 
   const bikeCarbG = onBikeCarbG(day.km, day.elev);
@@ -1171,11 +1229,11 @@ function renderToday(){
     {key:'vitaminD3', type:'Morgens', icon:'☀️', recipe:VITAMIN_D3, scale:1},
     {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, scale:1},
     {key:'onbike', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true},
-    {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:mealScale},
+    {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:lunchScale},
     {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE, scale:1},
     {key:'shake', type:isTrainingDay?'Post-Workout':'Extra-Protein', icon:'🥤', recipe:shakeRecipe(scoops, isTrainingDay), scale:1, onlyIfShake:true},
     {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, scale:1},
-    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:mealScale},
+    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:dinnerScale},
     {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM, scale:1}
   ].filter(m => !m.onlyIfShake || scoops > 0)
    .filter(m => !m.onlyIfBike || bikeCarbG > 0);
@@ -1188,7 +1246,15 @@ function renderToday(){
       <span class="chev">›</span>
     </div>`).join('');
   mealDefs.forEach(m=>{
-    document.getElementById('meal_'+m.key).onchange = e=>{ day.meals[m.key]=e.target.checked; saveDays(); };
+    document.getElementById('meal_'+m.key).onchange = e=>{
+      day.meals[m.key] = e.target.checked;
+      if(m.key === 'lunch' || m.key === 'dinner'){
+        if(e.target.checked) day.mealScaleUsed[m.key] = m.scale;
+        else delete day.mealScaleUsed[m.key];
+      }
+      saveDays();
+      renderToday();
+    };
   });
   document.getElementById('mealList').querySelectorAll('.exname').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -1197,7 +1263,7 @@ function renderToday(){
     });
   });
 
-  const realizedKcal = fixedKcal + (lunch.kcalBase + dinner.kcalBase)*mealScale + bikeCarbG*4;
+  const realizedKcal = fixedKcal + lunch.kcalBase*lunchScale + dinner.kcalBase*dinnerScale + bikeCarbG*4;
   const stillShort = macros.target - realizedKcal;
   document.getElementById('extraCarbNote').innerHTML = stillShort > 400
     ? `<p class="sub" style="margin-top:8px;">🚴 Sehr hoher Energiebedarf heute – Plan + Unterwegs-Verpflegung decken nicht mehr alles exakt ab. Iss an so einem Tag ruhig nach Hunger etwas mehr (z. B. Nachschlag Reis/Nudeln, zusätzliches Brot) – lieber etwas mehr als zu wenig, wenn die Belastung so hoch war.</p>`
