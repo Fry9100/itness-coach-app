@@ -942,10 +942,14 @@ function cycleWeekFor(key){
   return (Math.floor(totalSessionsBefore(key)/3) % 4);
 }
 
+// Ohne gefahrene Kilometer sind Höhenmeter physikalisch unmöglich (man kann nicht klettern ohne zu fahren) -
+// eingetragene Höhenmeter bei 0 km werden daher ignoriert, statt trotzdem in die Rechnung einzufließen.
+function effectiveElev(km, elev){ return (km||0) > 0 ? (elev||0) : 0; }
+
 function computeMacros(km, elev, strengthToday){
   const bmr = 10*profile.weight + 6.25*profile.height - 5*profile.age + 5;
   const neat = bmr*1.2;
-  const bikeKcal = (km||0)*30 + (elev||0)*profile.weight*0.01;
+  const bikeKcal = (km||0)*30 + effectiveElev(km, elev)*profile.weight*0.01;
   const strengthKcal = strengthToday ? 300 : 0;
   const maint = neat + bikeKcal + strengthKcal;
   const safetyFloor = Math.max(1500, bmr*0.9);
@@ -999,7 +1003,7 @@ function shakeRecipe(scoops, isTraining){
 
 /* Unterwegs-Verpflegung: ab ca. 1 Std. Fahrzeit werden Kohlenhydrate während der Fahrt gebraucht,
    nicht erst beim nächsten Sitz-Essen. Grober Richtwert Sportwissenschaft: ~60g KH/Std. nach der 1. Stunde. */
-function rideDurationHours(km, elev){ return (km||0)/25 + (elev||0)/600; }
+function rideDurationHours(km, elev){ return (km||0)/25 + effectiveElev(km, elev)/600; }
 function onBikeCarbG(km, elev){
   const dur = rideDurationHours(km, elev);
   return dur <= 1 ? 0 : Math.round((dur-1)*60/10)*10;
@@ -1083,7 +1087,7 @@ function renderToday(){
   document.getElementById('in_km').oninput = e => { day.km = Math.max(0, parseFloat(e.target.value)||0); saveDays(); renderToday(); };
   document.getElementById('in_elev').oninput = e => { day.elev = Math.max(0, parseFloat(e.target.value)||0); saveDays(); renderToday(); };
 
-  const bigRide = (day.km||0) >= 70 || (day.elev||0) >= 800;
+  const bigRide = (day.km||0) >= 70 || effectiveElev(day.km, day.elev) >= 800;
   const strengthContent = document.getElementById('strengthContent');
 
   if(isFuture){
@@ -1297,7 +1301,7 @@ function renderReview(){
     if(dl.rest) cheatDays++;
     else trackedDays++;
     totalKm += dl.km||0;
-    totalElev += dl.elev||0;
+    totalElev += effectiveElev(dl.km, dl.elev);
     if((dl.km||0) > 0) rideDays++;
     if(dl.strengthDone){
       strengthSessions++;
