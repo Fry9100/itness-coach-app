@@ -119,6 +119,13 @@
   input[type=number].wtinput:focus{outline:none;border-color:var(--accent);}
   .exrow .chev{color:var(--sub);font-size:17px;flex:0 0 auto;transition:transform .15s ease;}
   .exrow:active .chev{transform:translateX(2px);color:var(--accent);}
+  .mealGroupLabel{font-size:11px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.6px;
+    margin:14px 0 2px;padding-top:6px;}
+  .mealGroupLabel:first-child{margin-top:0;padding-top:0;}
+  .swapbtn{flex:0 0 auto;background:var(--chip);border:1px solid var(--line);border-radius:8px;
+    width:28px;height:28px;font-size:13px;display:flex;align-items:center;justify-content:center;
+    color:var(--sub);transition:transform .12s ease,background-color .15s ease;}
+  .swapbtn:active{transform:scale(.9);background:var(--accent-soft);}
   .exicon{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:var(--accent-soft);
     display:flex;align-items:center;justify-content:center;font-size:17px;}
   .backbtn{background:none;border:none;color:var(--accent);font-size:14.5px;font-weight:700;
@@ -486,11 +493,12 @@ function saveProfile(){
 /* ---------- Day log storage ---------- */
 let days = loadJSON('days', {});
 function getDay(key){
-  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{}, exWeights:{}, mealScaleUsed:{} };
+  if(!days[key]) days[key] = { rest:false, strengthDone:false, unit:null, km:0, elev:0, meals:{}, exDone:{}, exWeights:{}, mealScaleUsed:{}, mealSwap:{} };
   if(!days[key].exDone) days[key].exDone = {};
   if(!days[key].exWeights) days[key].exWeights = {};
   if(!days[key].meals || Array.isArray(days[key].meals)) days[key].meals = {};
   if(!days[key].mealScaleUsed) days[key].mealScaleUsed = {};
+  if(!days[key].mealSwap) days[key].mealSwap = {};
   return days[key];
 }
 function lastWeightFor(name, beforeKey){
@@ -710,31 +718,36 @@ function showShoppingList(){
       cur = addDays(cur,1); first=false; continue;
     }
     const doneMeals = (first && dayLog) ? dayLog.meals || {} : {};
-    const lunch = LUNCHES[wIdx];
-    const dinner = DINNERS[wIdx];
+    const swapForDay = (first && dayLog && dayLog.mealSwap) || {};
+    const lunch = swapForDay.lunch ? LUNCH_ALT : LUNCHES[wIdx];
+    const dinner = swapForDay.dinner ? DINNER_ALT : DINNERS[wIdx];
     const dayTraining = !!(dayLog && (dayLog.strengthDone || Object.values(dayLog.exDone||{}).some(v=>v)));
     const macrosForDay = computeMacros(dayLog?dayLog.km:0, dayLog?dayLog.elev:0, dayTraining);
     const scaleUsed = (first && dayLog && dayLog.mealScaleUsed) || {};
     const lunchLockedForDay = !!(doneMeals.lunch && scaleUsed.lunch != null);
     const dinnerLockedForDay = !!(doneMeals.dinner && scaleUsed.dinner != null);
-    let lunchScaleForDay, dinnerScaleForDay, dayScoops;
+    let lunchScaleForDay, dinnerScaleForDay, dayScoops, dayLeftover;
     if(!lunchLockedForDay && !dinnerLockedForDay){
-      ({ scoops: dayScoops, scale: lunchScaleForDay } = planMealScale(macrosForDay.target, lunch, dinner, dayTraining ? 1 : 0));
+      ({ scoops: dayScoops, scale: lunchScaleForDay, leftover: dayLeftover } = planMealScale(macrosForDay.target, lunch, dinner, dayTraining ? 1 : 0));
       dinnerScaleForDay = lunchScaleForDay;
     } else if(lunchLockedForDay && !dinnerLockedForDay){
       lunchScaleForDay = scaleUsed.lunch;
-      ({ scoops: dayScoops, scale: dinnerScaleForDay } = planMealScaleSingle(macrosForDay.target - lunch.kcalBase*lunchScaleForDay, dinner, dayTraining ? 1 : 0));
+      ({ scoops: dayScoops, scale: dinnerScaleForDay, leftover: dayLeftover } = planMealScaleSingle(macrosForDay.target - lunch.kcalBase*lunchScaleForDay, dinner, dayTraining ? 1 : 0));
     } else if(dinnerLockedForDay && !lunchLockedForDay){
       dinnerScaleForDay = scaleUsed.dinner;
-      ({ scoops: dayScoops, scale: lunchScaleForDay } = planMealScaleSingle(macrosForDay.target - dinner.kcalBase*dinnerScaleForDay, lunch, dayTraining ? 1 : 0));
+      ({ scoops: dayScoops, scale: lunchScaleForDay, leftover: dayLeftover } = planMealScaleSingle(macrosForDay.target - dinner.kcalBase*dinnerScaleForDay, lunch, dayTraining ? 1 : 0));
     } else {
       lunchScaleForDay = scaleUsed.lunch; dinnerScaleForDay = scaleUsed.dinner; dayScoops = dayTraining ? 1 : 0;
+      const lockedKcalForDay = lunch.kcalBase*lunchScaleForDay + dinner.kcalBase*dinnerScaleForDay;
+      const fixedForDay = BREAKFAST.kcalBase + SNACK.kcalBase + dayScoops*SHAKE.kcalBase;
+      dayLeftover = Math.max(0, macrosForDay.target - fixedForDay - lockedKcalForDay);
     }
+    const snackScaleForDay = snackScaleFor(dayLeftover);
     if(!doneMeals.shake) wheyScoopsTotal += dayScoops;
 
     if(!doneMeals.breakfast) addRecipe(BREAKFAST, 1);
     if(!doneMeals.lunch) addRecipe(lunch, lunchScaleForDay);
-    if(!doneMeals.snack) addRecipe(SNACK, 1);
+    if(!doneMeals.snack) addRecipe(SNACK, snackScaleForDay);
     if(!doneMeals.dinner) addRecipe(dinner, dinnerScaleForDay);
     if(lunch.freeform) notes.push(`${WD_LABELS[wIdx]}: Mittag frei wählbar – nicht in der Liste enthalten.`);
     if(dinner.freeform) notes.push(`${WD_LABELS[wIdx]}: Abend frei wählbar – nicht in der Liste enthalten.`);
@@ -911,6 +924,11 @@ const DINNERS = [
     steps:['Suppe erhitzen.','Eier 8–10 Min. hart kochen, schälen.','Zusammen servieren.'] }
 ];
 
+// Immer verfügbare, bewusst besonders einfache Alternative zu Mittag/Abend - für Tage, an denen Kochen
+// zu viel ist. Nutzt Zutaten, die ohnehin schon im Kern-Set sind (kein zusätzlicher Einkauf nötig).
+const LUNCH_ALT = LUNCHES[2];   // Kichererbsen-Reis-Bowl - kein Vorkochen von Linsen/Rösten nötig
+const DINNER_ALT = DINNERS[1];  // Rührei + Vollkornbrot + Salat - 5 Minuten, keine Vorbereitung
+
 /* ---------- Scheduling engine ---------- */
 function totalSessionsBefore(key){
   // Anzahl abgeschlossener Einheiten an allen Tagen VOR dem gegebenen Tag (chronologisch)
@@ -962,31 +980,49 @@ function computeMacros(km, elev, strengthToday){
   return { target, proteinG, fatG, carbG };
 }
 
+// Sportwissenschaftlich sinnvolle Obergrenze für EINE Sitzmahlzeit (Magen-Darm-Kapazität) - alles was
+// darüber hinaus an Energie gebraucht wird, kommt nicht in eine noch größere Portion, sondern in einen
+// größeren Snack (siehe MAX_SNACK_SCALE unten). Empfehlung: lieber 5-6 moderate Mahlzeiten als 2-3 riesige.
+const MEAL_CEILING = 1.5;
+const MAX_SNACK_SCALE = 3.0;
+
 /* Portionsgröße + Whey-Scoops gemeinsam planen: so viele Scoops (max. 2/Tag, siehe Supplement-Hinweise)
-   wie das Kalorienziel noch zulässt (Mittag/Abend dürfen dafür nie unter 50% der Basisportion schrumpfen) -
-   damit deckt die Ernährung inkl. Proteinpulver den Tagesbedarf, ohne je über das Kalorienziel zu gehen. */
+   wie das Kalorienziel noch zulässt (Mittag/Abend dürfen dafür nie unter 50% der Basisportion schrumpfen,
+   aber auch nie über MEAL_CEILING wachsen) - damit deckt die Ernährung inkl. Proteinpulver den Tagesbedarf,
+   ohne je über das Kalorienziel zu gehen. `leftover` ist der Teil des Bedarfs, der über die Mahlzeiten-
+   Obergrenze hinausgeht und stattdessen über einen größeren Snack ausgeglichen werden soll. */
 function planMealScale(target, lunch, dinner, baselineScoops){
   let scoops = baselineScoops, scale = null;
   for(let s=baselineScoops; s<=2; s++){
     const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
     const raw = (target - fixedKcal) / (lunch.kcalBase + dinner.kcalBase);
-    if(raw >= 0.5){ scoops = s; scale = Math.min(2.2, raw); } else break;
+    if(raw >= 0.5){ scoops = s; scale = Math.min(MEAL_CEILING, raw); } else break;
   }
   if(scale == null) scale = 0.5;
-  return { scoops, scale };
+  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + scoops*SHAKE.kcalBase;
+  const leftover = Math.max(0, (target - fixedKcal) - scale*(lunch.kcalBase + dinner.kcalBase));
+  return { scoops, scale, leftover };
 }
 /* Gleiche Logik, aber für nur EINE Mahlzeit - wird gebraucht, wenn die andere (Mittag oder Abend) schon
-   abgehakt/gegessen und damit fix ist: die verbleibende Mahlzeit übernimmt dann den ganzen Rest-Bedarf,
-   statt dass die App eine bereits gegessene Mahlzeit rückwirkend größer/kleiner "umrechnet". */
+   abgehakt/gegessen und damit fix ist: die verbleibende Mahlzeit übernimmt dann den Rest-Bedarf (bis zur
+   Obergrenze), statt dass die App eine bereits gegessene Mahlzeit rückwirkend größer/kleiner "umrechnet". */
 function planMealScaleSingle(target, meal, baselineScoops){
   let scoops = baselineScoops, scale = null;
   for(let s=baselineScoops; s<=2; s++){
     const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
     const raw = (target - fixedKcal) / meal.kcalBase;
-    if(raw >= 0.5){ scoops = s; scale = Math.min(2.6, raw); } else break;
+    if(raw >= 0.5){ scoops = s; scale = Math.min(MEAL_CEILING, raw); } else break;
   }
   if(scale == null) scale = 0.5;
-  return { scoops, scale };
+  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + scoops*SHAKE.kcalBase;
+  const leftover = Math.max(0, (target - fixedKcal) - scale*meal.kcalBase);
+  return { scoops, scale, leftover };
+}
+// Wandelt "übrig gebliebenen" Energiebedarf (aus planMealScale/-Single) in eine größere Snack-Portion um -
+// Skyr+Beeren lässt sich problemlos vergrößern (kein Kochen nötig). Was auch das nicht mehr abdeckt,
+// bleibt als ehrlicher "iss nach Hunger"-Hinweis übrig (siehe extraCarbNote weiter unten).
+function snackScaleFor(leftover){
+  return Math.min(MAX_SNACK_SCALE, 1 + Math.max(0, leftover) / SNACK.kcalBase);
 }
 function shakeRecipe(scoops, isTraining){
   return { name:`Whey-Shake: ${scoops}× Scoop (≈${scoops*SHAKE.proteinBase}g Protein)`, carb:null,
@@ -1098,10 +1134,17 @@ function renderToday(){
     const startedToday = day.strengthDone || Object.values(day.exDone||{}).some(v=>v);
     const sessionsWeek = sessionsInTrailingWeek(key);
     const sinceLast = daysSinceLastSession(key);
+    // Die ersten Einheiten machen oft deutlich mehr Muskelkater ("Repeated-Bout-Effekt" - der Körper
+    // braucht beim allerersten Reiz auf eine Übung am meisten Erholung, danach spürbar weniger) -
+    // deshalb in der Anfangsphase automatisch 2 Tage Mindestpause statt 1, ganz ohne manuelle Eingabe.
+    const isBeginnerPhase = totalSessionsBefore(key) < 3;
+    const minGap = isBeginnerPhase ? 2 : 1;
     let due = true, reason = '';
     if(!startedToday){
       if(bigRide){ due=false; reason = `Große Radausfahrt heute (${day.km||0} km / ${day.elev||0} Hm) – heute Erholung, keine zusätzliche Krafteinheit.`; }
-      else if(sinceLast===1){ due=false; reason = 'Gestern trainiert – heute Pause zur Erholung, morgen ggf. wieder fällig.'; }
+      else if(sinceLast<=minGap){ due=false; reason = isBeginnerPhase
+        ? `Anfangsphase – nach den ersten Einheiten braucht der Körper oft 2–3 Tage Erholung (Muskelkater). Heute Pause bzw. Ausdauertraining, in ein paar Tagen wieder fällig.`
+        : 'Gestern trainiert – heute Pause zur Erholung, morgen ggf. wieder fällig.'; }
       else if(sessionsWeek>=profile.target){ due=false; reason = `Wochenziel schon erreicht (${sessionsWeek}/${profile.target}) – heute Pause.`; }
     }
 
@@ -1197,22 +1240,22 @@ function renderToday(){
   // Ist Mittag oder Abend schon abgehakt (gegessen), bleibt dessen Portion fix ("eingefroren") - z.B. wenn du
   // erst nach dem Mittagessen noch Rad fährst, landet der komplette Mehrbedarf beim Abendessen statt einer
   // rückwirkenden (unsinnigen) Neuberechnung des schon gegessenen Mittagessens.
-  const lunch = LUNCHES[wdIdx];
-  const dinner = DINNERS[wdIdx];
+  const lunch = day.mealSwap.lunch ? LUNCH_ALT : LUNCHES[wdIdx];
+  const dinner = day.mealSwap.dinner ? DINNER_ALT : DINNERS[wdIdx];
   const isTrainingDay = strengthTodayForMacros || day.strengthDone;
   const baselineScoops = isTrainingDay ? 1 : 0;
   const lunchLocked = !!(day.meals.lunch && day.mealScaleUsed.lunch != null);
   const dinnerLocked = !!(day.meals.dinner && day.mealScaleUsed.dinner != null);
-  let lunchScale, dinnerScale, scoops;
+  let lunchScale, dinnerScale, scoops, leftover;
   if(!lunchLocked && !dinnerLocked){
-    ({ scoops, scale: lunchScale } = planMealScale(macros.target, lunch, dinner, baselineScoops));
+    ({ scoops, scale: lunchScale, leftover } = planMealScale(macros.target, lunch, dinner, baselineScoops));
     dinnerScale = lunchScale;
   } else if(lunchLocked && !dinnerLocked){
     lunchScale = day.mealScaleUsed.lunch;
-    ({ scoops, scale: dinnerScale } = planMealScaleSingle(macros.target - lunch.kcalBase*lunchScale, dinner, baselineScoops));
+    ({ scoops, scale: dinnerScale, leftover } = planMealScaleSingle(macros.target - lunch.kcalBase*lunchScale, dinner, baselineScoops));
   } else if(dinnerLocked && !lunchLocked){
     dinnerScale = day.mealScaleUsed.dinner;
-    ({ scoops, scale: lunchScale } = planMealScaleSingle(macros.target - dinner.kcalBase*dinnerScale, lunch, baselineScoops));
+    ({ scoops, scale: lunchScale, leftover } = planMealScaleSingle(macros.target - dinner.kcalBase*dinnerScale, lunch, baselineScoops));
   } else {
     lunchScale = day.mealScaleUsed.lunch;
     dinnerScale = day.mealScaleUsed.dinner;
@@ -1222,33 +1265,56 @@ function renderToday(){
       const fixedTry = BREAKFAST.kcalBase + SNACK.kcalBase + s*SHAKE.kcalBase;
       if(fixedTry + lockedKcal <= macros.target) scoops = s; else break;
     }
+    const fixedTry2 = BREAKFAST.kcalBase + SNACK.kcalBase + scoops*SHAKE.kcalBase;
+    leftover = Math.max(0, macros.target - fixedTry2 - lockedKcal);
   }
-  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase + scoops*SHAKE.kcalBase;
+  const snackScale = snackScaleFor(leftover);
+  const fixedKcal = BREAKFAST.kcalBase + SNACK.kcalBase*snackScale + scoops*SHAKE.kcalBase;
 
   const bikeCarbG = onBikeCarbG(day.km, day.elev);
 
+  // Gruppiert nach Tageszeit statt einer langen, unübersichtlichen Liste - Supplements bilden eine eigene
+  // Gruppe unabhängig von der Uhrzeit, damit Ernährung und Nahrungsergänzung klar getrennt sichtbar sind.
+  const GROUP_META = {
+    fruh:        { label: 'Früh' },
+    mittag:      { label: 'Mittag' },
+    abend:       { label: 'Spät' },
+    snacks:      { label: 'Snacks' },
+    supplements: { label: 'Supplements' },
+  };
   const mealDefs = [
-    {key:'medication', type:'Morgens', icon:'💊', recipe:MEDICATION, scale:1},
-    {key:'magnesiumAm', type:'Morgens', icon:'⚪', recipe:MAGNESIUM_AM, scale:1},
-    {key:'vitaminD3', type:'Morgens', icon:'☀️', recipe:VITAMIN_D3, scale:1},
-    {key:'breakfast', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, scale:1},
-    {key:'onbike', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true},
-    {key:'lunch', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:lunchScale},
-    {key:'creatine', type:'Täglich', icon:'💪', recipe:CREATINE, scale:1},
-    {key:'shake', type:isTrainingDay?'Post-Workout':'Extra-Protein', icon:'🥤', recipe:shakeRecipe(scoops, isTrainingDay), scale:1, onlyIfShake:true},
-    {key:'snack', type:'Snack', icon:'🫐', recipe:SNACK, scale:1},
-    {key:'dinner', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:dinnerScale},
-    {key:'magnesiumPm', type:'Abends', icon:'⚪', recipe:MAGNESIUM_PM, scale:1}
+    {key:'breakfast', group:'fruh', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, scale:1},
+    {key:'lunch', group:'mittag', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:lunchScale, swappable:true, alt:LUNCH_ALT},
+    {key:'dinner', group:'abend', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:dinnerScale, swappable:true, alt:DINNER_ALT},
+    {key:'snack', group:'snacks', type:'Snack', icon:'🫐', recipe:SNACK, scale:snackScale},
+    {key:'onbike', group:'snacks', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true},
+    {key:'shake', group:'snacks', type:isTrainingDay?'Post-Workout':'Extra-Protein', icon:'🥤', recipe:shakeRecipe(scoops, isTrainingDay), scale:1, onlyIfShake:true},
+    {key:'medication', group:'supplements', type:'Medikament', icon:'💊', recipe:MEDICATION, scale:1},
+    {key:'magnesiumAm', group:'supplements', type:'Magnesium (morgens)', icon:'⚪', recipe:MAGNESIUM_AM, scale:1},
+    {key:'vitaminD3', group:'supplements', type:'Vitamin D3', icon:'☀️', recipe:VITAMIN_D3, scale:1},
+    {key:'creatine', group:'supplements', type:'Kreatin', icon:'💪', recipe:CREATINE, scale:1},
+    {key:'magnesiumPm', group:'supplements', type:'Magnesium (abends)', icon:'⚪', recipe:MAGNESIUM_PM, scale:1}
   ].filter(m => !m.onlyIfShake || scoops > 0)
    .filter(m => !m.onlyIfBike || bikeCarbG > 0);
 
-  document.getElementById('mealList').innerHTML = mealDefs.map(m=>`
+  document.getElementById('mealList').innerHTML = Object.keys(GROUP_META).map(g=>{
+    const items = mealDefs.filter(m=>m.group===g);
+    if(!items.length) return '';
+    return `<div class="mealGroupLabel">${GROUP_META[g].label}</div>` + items.map(m=>{
+      const locked = day.meals[m.key] && (m.key==='lunch' || m.key==='dinner');
+      const swapBtn = m.swappable && !locked
+        ? `<button class="swapbtn" data-swapkey="${m.key}" title="Einfache Alternative: ${m.alt.name}">🔄</button>` : '';
+      return `
     <div class="exrow">
       <input type="checkbox" id="meal_${m.key}" ${day.meals[m.key]?'checked':''}>
       <span class="exicon">${m.icon}</span>
       <span class="exname" data-key="${m.key}">${m.recipe.name}<small>${m.type}</small></span>
+      ${swapBtn}
       <span class="chev">›</span>
-    </div>`).join('');
+    </div>`;
+    }).join('');
+  }).join('');
+
   mealDefs.forEach(m=>{
     document.getElementById('meal_'+m.key).onchange = e=>{
       day.meals[m.key] = e.target.checked;
@@ -1266,11 +1332,21 @@ function renderToday(){
       showRecipeDetail(m.recipe, m.scale, m.icon);
     });
   });
+  document.getElementById('mealList').querySelectorAll('.swapbtn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const k = btn.dataset.swapkey;
+      day.mealSwap[k] = !day.mealSwap[k];
+      saveDays();
+      renderToday();
+    });
+  });
 
+  const absorbedBySnack = (snackScale-1)*SNACK.kcalBase;
+  const stillShort = leftover - absorbedBySnack;
   const realizedKcal = fixedKcal + lunch.kcalBase*lunchScale + dinner.kcalBase*dinnerScale + bikeCarbG*4;
-  const stillShort = macros.target - realizedKcal;
-  document.getElementById('extraCarbNote').innerHTML = stillShort > 400
-    ? `<p class="sub" style="margin-top:8px;">🚴 Sehr hoher Energiebedarf heute – Plan + Unterwegs-Verpflegung decken nicht mehr alles exakt ab. Iss an so einem Tag ruhig nach Hunger etwas mehr (z. B. Nachschlag Reis/Nudeln, zusätzliches Brot) – lieber etwas mehr als zu wenig, wenn die Belastung so hoch war.</p>`
+  document.getElementById('extraCarbNote').innerHTML = stillShort > 300
+    ? `<p class="sub" style="margin-top:8px;">🚴 Sehr hoher Energiebedarf heute – Plan, größerer Snack und Unterwegs-Verpflegung decken nicht mehr alles exakt ab. Iss an so einem Tag ruhig nach Hunger etwas mehr – lieber etwas mehr als zu wenig, wenn die Belastung so hoch war.</p>`
     : '';
 }
 
