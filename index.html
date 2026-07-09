@@ -152,6 +152,7 @@
     display:flex;align-items:center;justify-content:center;font-size:28px;flex:0 0 auto;}
   .steps{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.6;}
   .steps li{margin-bottom:3px;}
+  .ingkcal{color:var(--sub);font-weight:600;font-variant-numeric:tabular-nums;}
   .ytbtn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--chip);
     color:var(--text);text-decoration:none;font-size:12.5px;font-weight:700;padding:9px 13px;
     border-radius:11px;border:1px solid var(--line);transition:transform .12s ease;}
@@ -661,17 +662,62 @@ function showExerciseDetail(name){
 }
 
 /* ---------- Rezept-Formatierung & Detailseite ---------- */
+// Grobe kcal-Schätzung je Zutat (pro 100g/100ml bzw. pro Stück/Scheibe) - dient als Kontrollinstrument,
+// damit auf der Detailseite nachvollziehbar ist, wie sich die kcal einer Mahlzeit zusammensetzen.
+// Reihenfolge wichtig: spezifischere Einträge (z.B. "Paprika, groß") müssen vor generischeren stehen.
+const ING_KCAL = [
+  ['Paprika, groß', 56, 'stk'], ['Paprika', 47, 'stk'],
+  ['Reis', 360, '100'], ['Süßkartoffel', 86, '100'], ['Tofu', 130, '100'],
+  ['Kichererbsen', 160, '100'], ['Linsen', 340, '100'], ['Käse', 350, '100'],
+  ['Skyr', 65, '100'], ['Haferflocken', 370, '100'], ['Banane', 107, 'stk'],
+  ['Beeren', 57, '100'], ['Gemüsesuppe', 25, '100'], ['Passierte Tomaten', 32, '100'],
+  ['Salat/Tomate', 20, '100'], ['Salat/Gemüse', 20, '100'], ['Gemüse', 35, '100'],
+  ['Sojasauce', 60, '100'], ['Kokosmilch', 180, '100'], ['Butter/Öl', 750, '100'],
+  ['Öl', 884, '100'], ['Currypulver', 0, '100'], ['Chilipulver', 0, '100'], ['Zimt', 0, '100'],
+  ['ESN Whey Protein', 380, '100'], ['ESN Creapure Kreatin', 0, '100'],
+  ['Eier', 93, 'stk'], ['Zwiebel', 32, 'stk'], ['Karotte', 25, 'stk'], ['Vollkornbrot', 77, 'stk'],
+  ['Wasser', 0, '100'], ['Tablette', 0, 'stk'], ['Magnesium', 0, 'stk'], ['Vitamin D3', 0, 'stk'],
+  ['Banane, Sportriegel', 110, 'stk'],
+];
+function ingredientKcal(item, qty, unit){
+  const found = ING_KCAL.find(([kw])=>item.indexOf(kw)===0);
+  if(!found) return null;
+  const [,val,basis] = found;
+  if(basis==='stk') return Math.round(qty*val);
+  if(unit==='EL') return Math.round(qty*15*val/100);
+  if(unit==='TL') return Math.round(qty*5*val/100);
+  if(unit==='Glas') return 0;
+  return Math.round(qty*val/100); // g/ml
+}
 function fmtIngredient(item, qty, unit){
   qty = Math.round(qty*10)/10;
-  if(unit==='Stk') return `${qty} ${item}`;
-  return `${qty} ${unit} ${item}`;
+  const kcal = ingredientKcal(item, qty, unit);
+  const kcalTag = kcal!=null ? ` <small class="ingkcal">${kcal} kcal</small>` : '';
+  if(unit==='Stk') return `${qty} ${item}${kcalTag}`;
+  return `${qty} ${unit} ${item}${kcalTag}`;
 }
-// Skaliert nur g/ml-Mengen (die eigentlichen Kalorienträger) mit dem Tagesfaktor;
-// Stück/EL/TL (Eier, Zwiebel, Öl, Gewürze) bleiben fix, da hier Skalierung keinen Sinn ergibt.
-function scaleQty(qty, unit, scale){
+// Skaliert g/ml-Mengen (die Hauptkalorienträger) mit dem Tagesfaktor. Bei Stück-/Scheiben-Zutaten
+// skaliert nur mit, wer spürbar zu Kalorien/Protein beiträgt (Eier, Vollkornbrot, Banane) - z.B.
+// mehr Eier an einem Tag mit hohem Bedarf ist normal. Reines Röst-/Aromagemüse (Zwiebel, Karotte,
+// Paprika als Basis) bleibt bewusst fix, da "mehr Stück" davon praktisch keinen Sinn ergibt.
+const SCALABLE_PIECE_ITEMS = ['Eier', 'Vollkornbrot', 'Banane'];
+function scaleQty(qty, unit, scale, item){
   if(scale==null || scale===1) return qty;
   if(unit==='g' || unit==='ml') return Math.max(5, Math.round(qty*scale/5)*5);
+  if((unit==='Stk' || unit.indexOf('Scheiben')===0) && item && SCALABLE_PIECE_ITEMS.some(n=>item.indexOf(n)===0)){
+    return Math.max(1, Math.round(qty*scale));
+  }
   return qty;
+}
+function buildIngList(recipe, scale){
+  const ingList = [];
+  if(recipe.carb) ingList.push({item:recipe.carb.item, qty:scaleQty(recipe.carb.base, recipe.carb.unit, scale, recipe.carb.item), unit:recipe.carb.unit});
+  recipe.extra.forEach(e=>ingList.push({item:e.item, qty:scaleQty(e.qty, e.unit, scale, e.item), unit:e.unit}));
+  return ingList;
+}
+function recipeTotalKcal(recipe, scale){
+  if(recipe.freeform) return null;
+  return buildIngList(recipe, scale).reduce((sum,x)=>sum + (ingredientKcal(x.item, Math.round(x.qty*10)/10, x.unit) || 0), 0);
 }
 function showRecipeDetail(recipe, scale, icon){
   icon = icon || '🍽️';
@@ -679,12 +725,12 @@ function showRecipeDetail(recipe, scale, icon){
     openDetail(`<div class="card"><div class="exCard"><span class="medallion">${icon}</span><h2 style="margin:0;">${recipe.name}</h2></div><p style="margin-top:10px;">${recipe.note}</p></div>`);
     return;
   }
-  const lines = [];
-  if(recipe.carb) lines.push(fmtIngredient(recipe.carb.item, scaleQty(recipe.carb.base, recipe.carb.unit, scale), recipe.carb.unit));
-  recipe.extra.forEach(e=>lines.push(fmtIngredient(e.item, scaleQty(e.qty, e.unit, scale), e.unit)));
+  const ingList = buildIngList(recipe, scale);
+  const lines = ingList.map(x=>fmtIngredient(x.item, x.qty, x.unit));
+  const totalKcal = recipeTotalKcal(recipe, scale);
   openDetail(`
     <div class="card">
-      <div class="exCard"><span class="medallion">${icon}</span><h2 style="margin:0;">${recipe.name}</h2></div>
+      <div class="exCard"><span class="medallion">${icon}</span><div><h2 style="margin:0;">${recipe.name}</h2><span class="badge accent" style="margin-top:6px;">≈ ${totalKcal} kcal gesamt</span></div></div>
       <h3>Zutaten (roh/ungekocht gewogen)</h3>
       <ul class="steps">${lines.map(l=>`<li>${l}</li>`).join('')}</ul>
       <h3>Zubereitung</h3>
@@ -705,8 +751,8 @@ function showShoppingList(){
   }
   function addRecipe(recipe, scale){
     if(!recipe || recipe.freeform) return;
-    if(recipe.carb) add(recipe.carb.item, scaleQty(recipe.carb.base, recipe.carb.unit, scale), recipe.carb.unit);
-    recipe.extra.forEach(e=>add(e.item, scaleQty(e.qty, e.unit, scale), e.unit));
+    if(recipe.carb) add(recipe.carb.item, scaleQty(recipe.carb.base, recipe.carb.unit, scale, recipe.carb.item), recipe.carb.unit);
+    recipe.extra.forEach(e=>add(e.item, scaleQty(e.qty, e.unit, scale, e.item), e.unit));
   }
 
   let cur = new Date(start);
@@ -892,7 +938,7 @@ const LUNCHES = [
   { name:'Linsen-Reis-Bowl mit Gemüse', kcalBase:900, proteinBase:34, carb:{item:'Reis (roh gewogen)', base:140, unit:'g'},
     extra:[{item:'Linsen (roh)', qty:80, unit:'g'},{item:'Gemüse gemischt (z. B. Zucchini, Paprika)', qty:200, unit:'g'},{item:'Sojasauce', qty:1, unit:'EL'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Reis und Linsen getrennt kochen (Linsen ca. 20 Min.), Gemüse in Öl anbraten, alles mit Sojasauce vermengen.','In eine Lunchbox füllen, kühl lagern.','In der Arbeit 2–3 Min. in der Mikrowelle aufwärmen (oder kalt genießen).'] },
-  { name:'Kichererbsen-Reis-Bowl', kcalBase:905, proteinBase:27, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
+  { name:'Kichererbsen-Reis-Bowl', kcalBase:880, proteinBase:25, carb:{item:'Reis (roh gewogen)', base:170, unit:'g'},
     extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Salat/Gemüse (z. B. Gurke, Tomate)', qty:150, unit:'g'}],
     steps:['Am Vorabend zubereiten: Reis kochen, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Salat/Gemüse in eine Lunchbox schichten.','In der Arbeit den warmen Teil in der Mikrowelle aufwärmen, Salat kalt dazu.'] },
   { name:'Tofu-Süßkartoffel-Bowl mit Gemüse', kcalBase:535, proteinBase:28, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
@@ -901,10 +947,10 @@ const LUNCHES = [
   { name:'Kichererbsen-Süßkartoffel-Bowl', kcalBase:550, proteinBase:19, carb:{item:'Süßkartoffel (roh)', base:250, unit:'g'},
     extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:150, unit:'g'},{item:'Gemüse gemischt', qty:150, unit:'g'},{item:'Öl', qty:1, unit:'TL'}],
     steps:['Am Vorabend zubereiten: Süßkartoffel würfeln und rösten, Kichererbsen mit Gewürzen (Kreuzkümmel, Paprika) kurz anbraten.','Mit Gemüse in eine Lunchbox füllen, kühl lagern.','In der Arbeit in der Mikrowelle aufwärmen (oder kalt genießen).'] },
-  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:830, proteinBase:29, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Gefüllte Paprika mit Reis und Käse', kcalBase:940, proteinBase:32, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Paprika, groß (zum Füllen)', qty:2, unit:'Stk'},{item:'Käse gerieben', qty:60, unit:'g'},{item:'Passierte Tomaten', qty:150, unit:'g'},{item:'Zwiebel', qty:1, unit:'Stk'}],
     steps:['Reis halb gar vorkochen.','Paprika halbieren, entkernen, mit Reis, kleingeschnittener Zwiebel und etwas passierter Tomate füllen.','Mit Käse bestreuen, bei 200°C ca. 25–30 Min. backen.','Heiß servieren – am Wochenende Zeit für frisches Kochen statt Meal Prep.'] },
-  { name:'Kichererbsen-Chili mit Reis', kcalBase:1050, proteinBase:35, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
+  { name:'Kichererbsen-Chili mit Reis', kcalBase:1065, proteinBase:35, carb:{item:'Reis (roh gewogen)', base:150, unit:'g'},
     extra:[{item:'Kichererbsen (Dose, abgetropft)', qty:240, unit:'g'},{item:'Passierte Tomaten', qty:200, unit:'g'},{item:'Paprika', qty:1, unit:'Stk'},{item:'Zwiebel', qty:1, unit:'Stk'},{item:'Chilipulver', qty:1, unit:'TL'}],
     steps:['Zwiebel und Paprika klein schneiden, kurz anbraten.','Kichererbsen und passierte Tomaten dazugeben, mit Chilipulver 15–20 Min. köcheln.','Reis parallel kochen.','Ruhig eine größere Menge kochen und 2–3 Portionen für die kommende Woche kühl/eingefroren aufheben – guter Meal-Prep-Start in die Woche.'] }
 ];
@@ -1292,12 +1338,12 @@ function renderToday(){
     supplements: { label: 'Supplements' },
   };
   const mealDefs = [
-    {key:'breakfast', group:'fruh', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, scale:1},
-    {key:'lunch', group:'mittag', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:lunchScale, swappable:true, alt:LUNCH_ALT},
-    {key:'dinner', group:'abend', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:dinnerScale, swappable:true, alt:DINNER_ALT},
-    {key:'snack', group:'snacks', type:'Snack', icon:'🫐', recipe:SNACK, scale:snackScale},
-    {key:'onbike', group:'snacks', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true},
-    {key:'shake', group:'snacks', type:isTrainingDay?'Post-Workout':'Extra-Protein', icon:'🥤', recipe:shakeRecipe(scoops, isTrainingDay), scale:1, onlyIfShake:true},
+    {key:'breakfast', group:'fruh', type:'Frühstück', icon:'🍳', recipe:BREAKFAST, scale:1, kcalDisplay:recipeTotalKcal(BREAKFAST, 1)},
+    {key:'lunch', group:'mittag', type:'Mittag · vorbereitet', icon:'🍱', recipe:lunch, scale:lunchScale, swappable:true, alt:LUNCH_ALT, kcalDisplay:recipeTotalKcal(lunch, lunchScale)},
+    {key:'dinner', group:'abend', type:'Abendessen', icon:'🍽️', recipe:dinner, scale:dinnerScale, swappable:true, alt:DINNER_ALT, kcalDisplay:recipeTotalKcal(dinner, dinnerScale)},
+    {key:'snack', group:'snacks', type:'Snack', icon:'🫐', recipe:SNACK, scale:snackScale, kcalDisplay:recipeTotalKcal(SNACK, snackScale)},
+    {key:'onbike', group:'snacks', type:'Während der Fahrt', icon:'🚴', recipe:onBikeFuelRecipe(bikeCarbG), scale:1, onlyIfBike:true, kcalDisplay:recipeTotalKcal(onBikeFuelRecipe(bikeCarbG), 1)},
+    {key:'shake', group:'snacks', type:isTrainingDay?'Post-Workout':'Extra-Protein', icon:'🥤', recipe:shakeRecipe(scoops, isTrainingDay), scale:1, onlyIfShake:true, kcalDisplay:recipeTotalKcal(shakeRecipe(scoops, isTrainingDay), 1)},
     {key:'medication', group:'supplements', type:'Medikament', icon:'💊', recipe:MEDICATION, scale:1},
     {key:'magnesiumAm', group:'supplements', type:'Magnesium (morgens)', icon:'⚪', recipe:MAGNESIUM_AM, scale:1},
     {key:'vitaminD3', group:'supplements', type:'Vitamin D3', icon:'☀️', recipe:VITAMIN_D3, scale:1},
@@ -1317,7 +1363,7 @@ function renderToday(){
     <div class="exrow">
       <input type="checkbox" id="meal_${m.key}" ${day.meals[m.key]?'checked':''}>
       <span class="exicon">${m.icon}</span>
-      <span class="exname" data-key="${m.key}">${m.recipe.name}<small>${m.type}</small></span>
+      <span class="exname" data-key="${m.key}">${m.recipe.name}<small>${m.type}${m.kcalDisplay!=null?' · '+m.kcalDisplay+' kcal':''}</small></span>
       ${swapBtn}
       <span class="chev">›</span>
     </div>`;
