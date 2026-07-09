@@ -718,9 +718,10 @@ function showShoppingList(){
       cur = addDays(cur,1); first=false; continue;
     }
     const doneMeals = (first && dayLog) ? dayLog.meals || {} : {};
-    const swapForDay = (first && dayLog && dayLog.mealSwap) || {};
-    const lunch = swapForDay.lunch ? LUNCH_ALT : LUNCHES[wIdx];
-    const dinner = swapForDay.dinner ? DINNER_ALT : DINNERS[wIdx];
+    // Die Einkaufsliste rechnet bewusst immer nach dem ursprünglich geplanten Wochenrezept, nicht nach
+    // einer spontanen Alternative (🔄) - sonst müsste jede Tages-Entscheidung den Wocheneinkauf verändern.
+    const lunch = LUNCHES[wIdx];
+    const dinner = DINNERS[wIdx];
     const dayTraining = !!(dayLog && (dayLog.strengthDone || Object.values(dayLog.exDone||{}).some(v=>v)));
     const macrosForDay = computeMacros(dayLog?dayLog.km:0, dayLog?dayLog.elev:0, dayTraining);
     const scaleUsed = (first && dayLog && dayLog.mealScaleUsed) || {};
