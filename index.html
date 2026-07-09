@@ -388,7 +388,11 @@
 
     <div class="card">
       <h2>Daten</h2>
-      <button class="pill secondary" onclick="resetAllData()">Alle gespeicherten Daten zurücksetzen</button>
+      <p class="sub">Sichere deine Daten (Profil, alle Tage inkl. Training/Ernährung/Gewichte, Einkaufslisten-Häkchen) als Datei, z. B. bevor du App-Updates testest.</p>
+      <button class="pill secondary" onclick="exportAllData()">📤 Daten exportieren (Backup)</button>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+      <button class="pill secondary" style="margin-top:8px;" onclick="document.getElementById('importFileInput').click()">📥 Daten importieren</button>
+      <button class="pill secondary" style="margin-top:8px;" onclick="resetAllData()">Alle gespeicherten Daten zurücksetzen</button>
     </div>
 
   </section>
@@ -488,6 +492,10 @@ function saveProfile(){
   const el = document.getElementById(id);
   el.value = profile[id.replace('in_','')];
   el.addEventListener('input', saveProfile);
+});
+document.getElementById('importFileInput').addEventListener('change', e=>{
+  importAllData(e.target.files[0]);
+  e.target.value = '';
 });
 
 /* ---------- Day log storage ---------- */
@@ -1362,6 +1370,46 @@ function resetAllData(){
     }
     location.reload();
   }
+}
+
+/* ---------- Backup: alle Daten (Profil, Tage inkl. Training/Ernährung/Gewichte, Einkaufslisten-Häkchen)
+   als eine JSON-Datei exportieren bzw. wieder importieren. Neue Datenfelder, die künftig dazukommen,
+   werden von getDay() automatisch mit Standardwerten ergänzt - ein älteres Backup lässt sich also auch
+   in einer neueren App-Version noch einlesen, ohne dass etwas kaputtgeht. */
+function exportAllData(){
+  const backup = { exportedAt: new Date().toISOString(), profile: loadJSON('profile', {}), days: loadJSON('days', {}), shoppingChecks: {} };
+  for(let i=storage.length? storage.length-1 : -1; i>=0; i--){
+    const k = storage.key ? storage.key(i) : null;
+    if(k && k.indexOf('shoppingChecks_')===0) backup.shoppingChecks[k] = loadJSON(k, {});
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fitness-coach-backup-${keyOf(todayDate())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importAllData(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    let backup;
+    try { backup = JSON.parse(e.target.result); }
+    catch(err){ alert('Datei konnte nicht gelesen werden – ist es eine gültige Backup-Datei?'); return; }
+    if(!backup || typeof backup!=='object' || !('days' in backup) || !('profile' in backup)){
+      alert('Diese Datei sieht nicht wie eine gültige Sicherung dieser App aus.');
+      return;
+    }
+    if(!confirm('Die aktuellen Daten in der App werden durch die Sicherung ersetzt. Fortfahren?')) return;
+    saveJSON('profile', backup.profile || {});
+    saveJSON('days', backup.days || {});
+    Object.entries(backup.shoppingChecks || {}).forEach(([k,v])=>saveJSON(k, v));
+    location.reload();
+  };
+  reader.readAsText(file);
 }
 
 /* ---------- Wochenrückblick (Mo bis heute) ---------- */
